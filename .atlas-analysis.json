@@ -1,0 +1,121 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Discore",
+  "projectDescription": "A Python framework for easily initializing and running discord.py bots with automatic error handling, logging, and i18n support",
+  "theme": "palm",
+  "primaryColor": "#5865F2",
+  "lightColor": "#7289DA",
+  "darkColor": "#4752C4",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/bot",
+              "core/cogs",
+              "core/commands",
+              "core/configuration",
+              "core/logging",
+              "core/localization",
+              "core/error-handling"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/basic-bot",
+              "guides/custom-cogs",
+              "guides/help-command",
+              "guides/environment-variables",
+              "guides/multiple-environments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/bot",
+              "api/cog"
+            ]
+          },
+          {
+            "group": "Help System",
+            "pages": [
+              "api/help/embed-help-command",
+              "api/help/help-hybrid-command"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/utils/config",
+              "api/utils/logging",
+              "api/utils/i18n",
+              "api/utils/helpers"
+            ]
+          },
+          {
+            "group": "UI Components",
+            "pages": [
+              "api/ui/view",
+              "api/ui/button",
+              "api/ui/select",
+              "api/ui/modal"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "One-line bot initialization and execution",
+    "Automatic error handling and user responses",
+    "Built-in logging to console, file, and Discord channels",
+    "i18n support with automatic locale detection",
+    "Enhanced help command with hybrid command support",
+    "Hot-reload support for cogs and locales",
+    "Convention over configuration philosophy",
+    "Full backward compatibility with discord.py"
+  ],
+  "publicApiSurface": [
+    "Bot",
+    "Cog",
+    "get_bot",
+    "EmbedHelpCommand",
+    "HelpHybridCommand",
+    "config",
+    "config_init",
+    "logging_init",
+    "i18n_init",
+    "set_locale",
+    "fallback_reply",
+    "get_command_usage",
+    "get_app_command_usage",
+    "log_command_error",
+    "log_data",
+    "set_embed_footer",
+    "ignore_cd",
+    "ui.View",
+    "ui.Button",
+    "ui.Select",
+    "ui.Modal",
+    "ui.Item",
+    "ui.TextInput",
+    "ui.DynamicItem"
+  ]
+}
