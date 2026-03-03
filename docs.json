@@ -62,7 +62,8 @@
             "group": "Core Classes",
             "pages": [
               "api/bot",
-              "api/cog"
+              "api/cog",
+              "api/command-tree"
             ]
           },
           {

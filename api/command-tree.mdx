@@ -1,0 +1,224 @@
+---
+title: CommandTree
+description: Custom command tree for slash command error handling
+---
+
+The `CommandTree` class extends discord.py's `app_commands.CommandTree` to provide automatic error handling for slash commands with localized error messages and logging integration.
+
+## Class Definition
+
+```python
+from discore import CommandTree
+
+class CommandTree(app_commands.CommandTree):
+    """A class that represents the bot's command tree."""
+```
+
+## Constructor
+
+<ParamField path="bot" type="Bot" required>
+  The bot instance that owns this command tree.
+</ParamField>
+
+```python
+tree = CommandTree(bot)
+```
+
+## Methods
+
+### on_error
+
+```python
+async def on_error(
+    interaction: Interaction,
+    error: app_commands.AppCommandError
+) -> None
+```
+
+Callback that is called when any slash command raises an `AppCommandError`.
+
+<ParamField path="interaction" type="discord.Interaction" required>
+  The interaction that is being handled.
+</ParamField>
+
+<ParamField path="error" type="app_commands.AppCommandError" required>
+  The exception that was raised.
+</ParamField>
+
+The default implementation:
+- Logs the exception using the library logger
+- Sends full context to the log channel if configured
+- Sends a localized error message to the user if `config.log.alert_user` is enabled
+- Skips processing if the command has its own error handler
+
+### handle_error
+
+```python
+async def handle_error(
+    interaction: Interaction,
+    error: app_commands.AppCommandError
+) -> None
+```
+
+Handles an error that occurred during slash command execution with automatic error type detection and localized responses.
+
+<ParamField path="interaction" type="discord.Interaction" required>
+  The interaction that is being handled.
+</ParamField>
+
+<ParamField path="error" type="app_commands.AppCommandError" required>
+  The exception that was raised.
+</ParamField>
+
+**Handled Error Types:**
+
+<AccordionGroup>
+  <Accordion title="CommandNotFound">
+    **Triggered**: Command exists locally but not synced with Discord
+    
+    **Action**: Automatically syncs the command tree and notifies the user
+    
+    **User sees**: Localized `app_error.command_not_found` message
+  </Accordion>
+
+  <Accordion title="TransformerError">
+    **Triggered**: Invalid argument type or conversion failure
+    
+    **User sees**: Localized `app_error.transformer` with argument value and command usage
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="NoPrivateMessage">
+    **Triggered**: Slash command used in DMs when guild-only
+    
+    **User sees**: Localized `app_error.no_private_message`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="MissingRole">
+    **Triggered**: User lacks required role
+    
+    **User sees**: Localized `app_error.missing_role` with role name
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="MissingAnyRole">
+    **Triggered**: User lacks all required roles
+    
+    **User sees**: Localized `app_error.missing_any_role` with list of roles
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="MissingPermissions">
+    **Triggered**: User lacks required Discord permissions
+    
+    **User sees**: Localized `app_error.missing_permissions` with list of permissions
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="BotMissingPermissions">
+    **Triggered**: Bot lacks required Discord permissions
+    
+    **User sees**: Localized `app_error.bot_missing_permissions` with list of permissions
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+
+  <Accordion title="CommandOnCooldown">
+    **Triggered**: Slash command used during cooldown period
+    
+    **User sees**: Localized `app_error.on_cooldown` with Discord timestamp
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+    
+    **Note**: Cooldown is NOT reset (unlike other errors)
+  </Accordion>
+
+  <Accordion title="CommandInvokeError">
+    **Triggered**: Exception raised during command execution
+    
+    **Action**: Full error context logged to console and Discord channel
+    
+    **User sees**: Localized `exception` message with file, line, and error details (if `config.log.alert_user` enabled)
+    
+    **Logged as**: ERROR with full traceback
+  </Accordion>
+</AccordionGroup>
+
+## Usage
+
+The `CommandTree` is automatically used by the `Bot` class. You typically don't need to instantiate it manually:
+
+```python
+import discore
+
+# CommandTree is used by default
+bot = discore.Bot()
+
+# Or specify a custom tree class
+class CustomTree(discore.CommandTree):
+    async def on_error(self, interaction, error):
+        # Custom error handling
+        await super().on_error(interaction, error)
+
+bot = discore.Bot(tree_cls=CustomTree)
+```
+
+### Defining Slash Commands
+
+```python
+import discore
+
+bot = discore.Bot()
+
+@bot.tree.command(name="ping", description="Check bot latency")
+async def ping(interaction: discore.Interaction):
+    await interaction.response.send_message(f"Pong! {bot.latency*1000:.0f}ms")
+
+bot.run()
+```
+
+### Custom Error Handling
+
+```python
+import discore
+
+bot = discore.Bot()
+
+@bot.tree.command(name="divide")
+async def divide(interaction: discore.Interaction, a: int, b: int):
+    try:
+        result = a / b
+        await interaction.response.send_message(f"{a} / {b} = {result}")
+    except ZeroDivisionError:
+        await interaction.response.send_message("Cannot divide by zero!", ephemeral=True)
+
+# Errors not handled by the command will be handled by CommandTree.handle_error()
+```
+
+## Integration with Localization
+
+All error messages use the i18n system and are automatically localized based on the user's Discord language preference. See the [Localization documentation](/core/localization) for details on customizing error messages.
+
+**Localization Keys Used:**
+- `app_error.command_not_found`
+- `app_error.transformer`
+- `app_error.no_private_message`
+- `app_error.missing_role`
+- `app_error.missing_any_role`
+- `app_error.missing_permissions`
+- `app_error.bot_missing_permissions`
+- `app_error.on_cooldown`
+- `exception`
+
+## See Also
+
+- [Bot](/api/bot) - Main bot class that uses CommandTree
+- [Error Handling](/core/error-handling) - Complete error handling overview
+- [Localization](/core/localization) - Customize error messages
+- [discord.py CommandTree Documentation](https://discordpy.readthedocs.io/en/stable/interactions/api.html#discord.app_commands.CommandTree) - Base class documentation
