@@ -1,0 +1,267 @@
+---
+title: Cog
+description: Complete API reference for the Discore Cog class
+---
+
+# Cog
+
+A simple cog class that extends `discord.ext.commands.Cog` with a pre-attributed bot instance for easy access.
+
+## Class Signature
+
+```python
+class Cog(discord.ext.commands.Cog)
+```
+
+## Overview
+
+The Discore Cog class provides a convenient wrapper around discord.py's Cog with automatic bot instance access. This eliminates the need to manually store the bot reference in your cog's `__init__` method.
+
+## Properties
+
+### bot
+
+```python
+@property
+bot -> Bot
+```
+
+Returns the currently running Bot instance. This property allows you to access the bot from anywhere within your cog without manual initialization.
+
+<ResponseField name="returns" type="Bot">
+  The bot instance retrieved via `Bot.get()`.
+</ResponseField>
+
+#### Example
+
+```python
+import discore
+from discord.ext import commands
+
+class MyCog(discore.Cog):
+    @discore.command(name="info")
+    async def info(self, ctx):
+        # Access bot properties directly
+        await ctx.send(f"Bot latency: {self.bot.latency * 1000:.2f}ms")
+        await ctx.send(f"Prefix: {self.bot.command_prefix}")
+```
+
+## How It Works
+
+Unlike traditional discord.py cogs that require manual bot storage:
+
+```python
+# Traditional discord.py cog
+from discord.ext import commands
+
+class TraditionalCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot  # Manual bot storage
+```
+
+Discore cogs automatically access the bot instance through the `bot` property:
+
+```python
+# Discore cog - no __init__ needed!
+import discore
+
+class DiscoreCog(discore.Cog):
+    # self.bot is automatically available
+    pass
+```
+
+## Integration with Bot
+
+Cogs are automatically loaded by the Bot class during startup via the `_load_cogs()` method. The bot follows these conventions:
+
+1. **Directory:** Cogs must be in a `cogs/` directory
+2. **File naming:** Cog files must end with `.py`
+3. **Class naming:** The class name must be the PascalCase version of the filename
+
+**Example structure:**
+```
+project/
+├── main.py
+├── config.yml
+└── cogs/
+    ├── moderation.py    # Contains class Moderation
+    ├── fun_commands.py  # Contains class FunCommands
+    └── utilities.py     # Contains class Utilities
+```
+
+## Complete Usage Example
+
+Here's a complete example from the Discore README showing a typical cog implementation:
+
+```python
+import discore
+
+class Cog1(discore.Cog, name="cog1", description="the cog containing some commands"):
+    @discore.command(
+        name="say",
+        brief="Say something",
+        description="Sends a message containing the string passed as an argument, and deletes the original message.",
+        help="- `message` : The string to send"
+    )
+    async def say(self, ctx, *, message: str):
+        await ctx.message.delete()
+        await ctx.send(message)
+
+    @discore.command(
+        name="ping",
+        brief="check if the bot is online",
+        description="Responds with a simple message, useful to see if the bot is online"
+    )
+    async def ping(self, ctx):
+        await ctx.message.reply("Pong!")
+```
+
+## Advanced Example
+
+```python
+import discore
+from discord.ext import commands
+import discord
+
+class Moderation(discore.Cog, name="Moderation", description="Moderation tools"):
+    
+    @commands.command(name="kick")
+    @commands.has_permissions(kick_members=True)
+    async def kick(self, ctx, member: discord.Member, *, reason: str = None):
+        """Kick a member from the server"""
+        await member.kick(reason=reason)
+        await ctx.send(f"{member.mention} has been kicked.")
+        
+        # Access bot properties
+        if self.bot.config.log.channel:
+            log_channel = self.bot.get_channel(self.bot.config.log.channel)
+            await log_channel.send(f"User {member} was kicked by {ctx.author}")
+    
+    @commands.command(name="ban")
+    @commands.has_permissions(ban_members=True)
+    async def ban(self, ctx, member: discord.Member, *, reason: str = None):
+        """Ban a member from the server"""
+        await member.ban(reason=reason)
+        await ctx.send(f"{member.mention} has been banned.")
+    
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        """Welcome new members"""
+        # Access bot user
+        welcome_msg = f"Welcome {member.mention} to {member.guild.name}!"
+        welcome_msg += f"\nI'm {self.bot.user.name}, type `{self.bot.command_prefix}help` for commands."
+        
+        # Try to send DM
+        try:
+            await member.send(welcome_msg)
+        except discord.Forbidden:
+            pass  # User has DMs disabled
+```
+
+## Hybrid Commands Example
+
+```python
+import discore
+from discord.ext import commands
+from discord import app_commands
+import discord
+
+class Utilities(discore.Cog, name="Utilities"):
+    
+    @commands.hybrid_command(name="stats")
+    async def stats(self, ctx: commands.Context):
+        """Show bot statistics"""
+        embed = discord.Embed(
+            title=f"{self.bot.user.name} Statistics",
+            color=discord.Color.blue()
+        )
+        
+        # Access bot properties
+        embed.add_field(name="Servers", value=len(self.bot.guilds))
+        embed.add_field(name="Users", value=len(self.bot.users))
+        embed.add_field(name="Latency", value=f"{self.bot.latency * 1000:.2f}ms")
+        
+        # Calculate uptime
+        if self.bot.start_time:
+            uptime = discord.utils.utcnow() - self.bot.start_time
+            hours, remainder = divmod(int(uptime.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            embed.add_field(
+                name="Uptime",
+                value=f"{hours}h {minutes}m {seconds}s"
+            )
+        
+        await ctx.send(embed=embed)
+    
+    @commands.hybrid_command(name="serverinfo")
+    @app_commands.guild_only()
+    async def serverinfo(self, ctx: commands.Context):
+        """Show server information"""
+        guild = ctx.guild
+        
+        embed = discord.Embed(
+            title=guild.name,
+            description=f"Server information for {guild.name}",
+            color=discord.Color.green()
+        )
+        
+        if guild.icon:
+            embed.set_thumbnail(url=guild.icon.url)
+        
+        embed.add_field(name="Owner", value=guild.owner.mention)
+        embed.add_field(name="Members", value=guild.member_count)
+        embed.add_field(name="Created", value=discord.utils.format_dt(guild.created_at, "R"))
+        
+        await ctx.send(embed=embed)
+```
+
+## File Naming Convention
+
+The Bot's `_load_cogs()` method automatically converts filenames to class names using snake_case to PascalCase conversion:
+
+| Filename | Expected Class Name |
+|----------|--------------------|
+| `moderation.py` | `Moderation` |
+| `fun_commands.py` | `FunCommands` |
+| `my_cog.py` | `MyCog` |
+| `api_tools.py` | `ApiTools` |
+
+## Error Handling in Cogs
+
+Cogs can define their own error handlers that will be called before the bot's global error handler:
+
+```python
+import discore
+from discord.ext import commands
+
+class MyCog(discore.Cog):
+    
+    @commands.command(name="divide")
+    async def divide(self, ctx, a: float, b: float):
+        """Divide two numbers"""
+        result = a / b
+        await ctx.send(f"{a} / {b} = {result}")
+    
+    @divide.error
+    async def divide_error(self, ctx, error):
+        """Handle errors for the divide command"""
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("Please provide valid numbers!")
+        elif isinstance(error, ZeroDivisionError):
+            await ctx.send("You can't divide by zero!")
+        else:
+            # Let the bot's error handler deal with it
+            raise error
+    
+    async def cog_command_error(self, ctx, error):
+        """Handle errors for all commands in this cog"""
+        # This runs for any command error in the cog
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send("You don't have permission to use this command.")
+```
+
+## See Also
+
+- [Bot](/api/bot) - Main bot class reference
+- [Commands](/core/commands) - Creating commands guide
+- [discord.py Cogs Documentation](https://discordpy.readthedocs.io/en/stable/ext/commands/cogs.html) - Official discord.py cog documentation

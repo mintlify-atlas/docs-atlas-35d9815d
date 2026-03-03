@@ -1,0 +1,525 @@
+---
+title: 'TextInput'
+description: 'Text input field component for modals'
+---
+
+## Overview
+
+The `TextInput` class represents a text input field that can be added to modals. Text inputs allow users to enter single-line or multi-line text responses. Discore re-exports discord.py's TextInput class.
+
+<Note>
+TextInput can only be used in Modals, not in Views. For collecting text in messages, consider using message content or modals triggered by buttons.
+</Note>
+
+## Class Definition
+
+```python
+from discore.ui import TextInput
+from discord import TextStyle
+
+class TextInput(discord.ui.TextInput):
+    """A text input field for modals."""
+```
+
+## Constructor
+
+```python
+TextInput(
+    *,
+    label: str,
+    style: TextStyle = TextStyle.short,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    default: str | None = None,
+    required: bool = True,
+    min_length: int | None = None,
+    max_length: int | None = None,
+    row: int | None = None
+)
+```
+
+<ParamField path="label" type="str" required>
+  The label displayed above the text input (max 45 characters).
+</ParamField>
+
+<ParamField path="style" type="TextStyle" default="TextStyle.short">
+  The style of the text input:
+  - `TextStyle.short` - Single-line input (default)
+  - `TextStyle.paragraph` - Multi-line input (up to 5 lines)
+</ParamField>
+
+<ParamField path="custom_id" type="str | None" default="None">
+  A unique identifier for the text input (max 100 characters). Auto-generated if not provided.
+</ParamField>
+
+<ParamField path="placeholder" type="str | None" default="None">
+  Placeholder text shown when the input is empty (max 100 characters).
+</ParamField>
+
+<ParamField path="default" type="str | None" default="None">
+  The default value pre-filled in the input (max 4000 characters).
+</ParamField>
+
+<ParamField path="required" type="bool" default="True">
+  Whether the input must be filled before the modal can be submitted.
+</ParamField>
+
+<ParamField path="min_length" type="int | None" default="None">
+  Minimum length of the input (0-4000). If set, user must enter at least this many characters.
+</ParamField>
+
+<ParamField path="max_length" type="int | None" default="None">
+  Maximum length of the input (1-4000). Limits how many characters can be entered.
+</ParamField>
+
+<ParamField path="row" type="int | None" default="None">
+  The row to place the text input in (0-4). Text inputs take up an entire row.
+</ParamField>
+
+## Properties
+
+### label
+
+```python
+label: str
+```
+
+The label text displayed above the input.
+
+### style
+
+```python
+style: TextStyle
+```
+
+The text input style (short or paragraph).
+
+### custom_id
+
+```python
+custom_id: str
+```
+
+The custom ID of the text input.
+
+### placeholder
+
+```python
+placeholder: str | None
+```
+
+The placeholder text.
+
+### default
+
+```python
+default: str | None
+```
+
+The default value.
+
+### required
+
+```python
+required: bool
+```
+
+Whether the input is required.
+
+### min_length
+
+```python
+min_length: int | None
+```
+
+Minimum character length.
+
+### max_length
+
+```python
+max_length: int | None
+```
+
+Maximum character length.
+
+### value
+
+```python
+value: str | None
+```
+
+The submitted value after the modal is submitted. `None` before submission.
+
+### view
+
+```python
+view: Modal | None
+```
+
+The modal this text input is attached to.
+
+## Text Styles
+
+### TextStyle.short
+
+Single-line text input. Best for:
+- Names
+- Emails
+- Short answers
+- Usernames
+- Titles
+
+Displays as a single-line input field.
+
+### TextStyle.paragraph
+
+Multi-line text input (up to 5 visible lines). Best for:
+- Descriptions
+- Comments
+- Feedback
+- Long-form responses
+- Detailed explanations
+
+Displays as a text area with multiple lines.
+
+## Usage Examples
+
+### Short Text Input
+
+```python
+from discore.ui import Modal, TextInput
+from discord import TextStyle, Interaction
+
+class SimpleModal(Modal):
+    name = TextInput(
+        label="What's your name?",
+        placeholder="Enter your name here...",
+        min_length=2,
+        max_length=50,
+        required=True
+    )
+    
+    def __init__(self):
+        super().__init__(title="Name Form")
+    
+    async def on_submit(self, interaction: Interaction):
+        await interaction.response.send_message(
+            f"Hello, {self.name.value}!",
+            ephemeral=True
+        )
+```
+
+### Paragraph Text Input
+
+```python
+class FeedbackModal(Modal):
+    feedback = TextInput(
+        label="Your Feedback",
+        style=TextStyle.paragraph,
+        placeholder="Tell us what you think...",
+        max_length=1000,
+        required=True
+    )
+    
+    def __init__(self):
+        super().__init__(title="Feedback Form")
+    
+    async def on_submit(self, interaction: Interaction):
+        # Access the submitted value
+        user_feedback = self.feedback.value
+        
+        # Process feedback...
+        await interaction.response.send_message(
+            "Thank you for your feedback!",
+            ephemeral=True
+        )
+```
+
+### Multiple Text Inputs
+
+```python
+class ContactModal(Modal):
+    name = TextInput(
+        label="Name",
+        placeholder="Your full name",
+        max_length=100
+    )
+    
+    email = TextInput(
+        label="Email",
+        placeholder="you@example.com",
+        max_length=100
+    )
+    
+    subject = TextInput(
+        label="Subject",
+        placeholder="What's this about?",
+        max_length=100
+    )
+    
+    message = TextInput(
+        label="Message",
+        style=TextStyle.paragraph,
+        placeholder="Your message here...",
+        max_length=2000
+    )
+    
+    def __init__(self):
+        super().__init__(title="Contact Form")
+    
+    async def on_submit(self, interaction: Interaction):
+        # Access all values
+        contact_info = {
+            "name": self.name.value,
+            "email": self.email.value,
+            "subject": self.subject.value,
+            "message": self.message.value
+        }
+        
+        # Send to support system...
+        await interaction.response.send_message(
+            "Your message has been sent!",
+            ephemeral=True
+        )
+```
+
+### Optional Text Input
+
+```python
+class ProfileModal(Modal):
+    bio = TextInput(
+        label="Bio (Optional)",
+        style=TextStyle.paragraph,
+        placeholder="Tell us about yourself...",
+        required=False,  # This field is optional
+        max_length=500
+    )
+    
+    website = TextInput(
+        label="Website (Optional)",
+        placeholder="https://example.com",
+        required=False,
+        max_length=200
+    )
+    
+    def __init__(self):
+        super().__init__(title="Edit Profile")
+    
+    async def on_submit(self, interaction: Interaction):
+        bio = self.bio.value or "No bio provided"
+        website = self.website.value or "No website"
+        
+        await interaction.response.send_message(
+            f"Bio: {bio}\nWebsite: {website}",
+            ephemeral=True
+        )
+```
+
+### Text Input with Default Value
+
+```python
+class EditModal(Modal):
+    def __init__(self, current_text: str):
+        super().__init__(title="Edit Content")
+        
+        # Add text input with default value
+        self.add_item(TextInput(
+            label="Content",
+            style=TextStyle.paragraph,
+            default=current_text,  # Pre-fill with existing content
+            max_length=2000
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        new_text = self.children[0].value
+        # Update the content...
+        await interaction.response.send_message(
+            "Content updated!",
+            ephemeral=True
+        )
+
+# Use with existing data
+current_content = "This is the existing text..."
+modal = EditModal(current_content)
+await interaction.response.send_modal(modal)
+```
+
+### Length Validation
+
+```python
+class ValidationModal(Modal):
+    username = TextInput(
+        label="Username",
+        min_length=3,  # At least 3 characters
+        max_length=20,  # At most 20 characters
+        placeholder="3-20 characters"
+    )
+    
+    password = TextInput(
+        label="Password",
+        min_length=8,  # Enforce minimum security
+        max_length=128,
+        placeholder="At least 8 characters"
+    )
+    
+    def __init__(self):
+        super().__init__(title="Registration")
+    
+    async def on_submit(self, interaction: Interaction):
+        # Length is already validated by Discord
+        await interaction.response.send_message(
+            f"Account created: {self.username.value}",
+            ephemeral=True
+        )
+```
+
+### Dynamic Text Inputs
+
+```python
+class DynamicModal(Modal):
+    def __init__(self, num_fields: int):
+        super().__init__(title="Dynamic Form")
+        
+        # Add text inputs dynamically (max 5)
+        for i in range(min(num_fields, 5)):
+            text_input = TextInput(
+                label=f"Field {i + 1}",
+                placeholder=f"Enter value for field {i + 1}",
+                custom_id=f"field_{i}",
+                required=False
+            )
+            self.add_item(text_input)
+    
+    async def on_submit(self, interaction: Interaction):
+        # Collect all values
+        values = [child.value for child in self.children]
+        
+        await interaction.response.send_message(
+            f"Submitted {len(values)} fields",
+            ephemeral=True
+        )
+
+# Create modal with 3 fields
+modal = DynamicModal(num_fields=3)
+await interaction.response.send_modal(modal)
+```
+
+### Accessing Text Input by Custom ID
+
+```python
+class CustomIdModal(Modal):
+    def __init__(self):
+        super().__init__(title="Form")
+        
+        self.add_item(TextInput(
+            label="Field 1",
+            custom_id="field_1"
+        ))
+        
+        self.add_item(TextInput(
+            label="Field 2",
+            custom_id="field_2"
+        ))
+    
+    def get_input_by_id(self, custom_id: str) -> TextInput | None:
+        """Get a text input by its custom ID."""
+        for child in self.children:
+            if child.custom_id == custom_id:
+                return child
+        return None
+    
+    async def on_submit(self, interaction: Interaction):
+        field1 = self.get_input_by_id("field_1")
+        field2 = self.get_input_by_id("field_2")
+        
+        await interaction.response.send_message(
+            f"Field 1: {field1.value}\nField 2: {field2.value}",
+            ephemeral=True
+        )
+```
+
+### Text Input in Specific Row
+
+```python
+class RowModal(Modal):
+    def __init__(self):
+        super().__init__(title="Organized Form")
+        
+        # Place inputs in specific rows
+        self.add_item(TextInput(
+            label="First Field",
+            row=0
+        ))
+        
+        self.add_item(TextInput(
+            label="Second Field",
+            row=1
+        ))
+        
+        self.add_item(TextInput(
+            label="Third Field",
+            style=TextStyle.paragraph,
+            row=2
+        ))
+```
+
+### Email Validation Example
+
+```python
+import re
+
+class EmailModal(Modal):
+    email = TextInput(
+        label="Email Address",
+        placeholder="user@example.com",
+        max_length=100
+    )
+    
+    def __init__(self):
+        super().__init__(title="Email Form")
+    
+    async def on_submit(self, interaction: Interaction):
+        email = self.email.value
+        
+        # Basic email validation
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            await interaction.response.send_message(
+                "Please enter a valid email address!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.send_message(
+            f"Email {email} registered!",
+            ephemeral=True
+        )
+```
+
+## Limitations
+
+- TextInput can only be used in Modals, not Views
+- Maximum 5 text inputs per modal
+- Label has a 45 character limit
+- Placeholder has a 100 character limit
+- Default value and submitted value have a 4000 character limit
+- Each text input takes up an entire row
+- Custom ID has a 100 character limit
+
+## Best Practices
+
+1. **Use appropriate styles**: Short for brief inputs, paragraph for longer text
+2. **Set length limits**: Use min_length and max_length to enforce valid input
+3. **Provide placeholders**: Help users understand what to enter
+4. **Mark optional fields**: Set required=False and indicate "(Optional)" in the label
+5. **Use default values**: Pre-fill known information for editing
+6. **Validate input**: Check the submitted value in on_submit
+7. **Clear labels**: Use descriptive labels that explain what's needed
+8. **Consider character limits**: Discord's 4000 char limit is generous, but set practical limits
+
+## Related
+
+- [Modal](/api/ui/modal) - Container for text inputs
+- [View](/api/ui/view) - Alternative UI container for buttons/selects
+- [Button](/api/ui/button) - Often used to trigger modals
+- [Item](/api/ui/item) - Base class for all UI components

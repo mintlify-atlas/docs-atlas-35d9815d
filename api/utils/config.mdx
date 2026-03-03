@@ -1,0 +1,119 @@
+---
+title: Configuration Utilities
+description: Utilities for loading and managing bot configuration from YAML files and environment variables
+---
+
+## config
+
+Global configuration object that stores all bot settings.
+
+<ResponseField name="config" type="addict.Dict">
+  Global dictionary-based configuration object. Initially contains `loaded=False` until `config_init()` is called.
+</ResponseField>
+
+```python
+from discore.utils import config
+
+# Access configuration values
+log_level = config.log.level
+bot_token = config.bot.token
+```
+
+## config_init
+
+Initialize the configuration system by loading configuration files in order.
+
+```python
+def config_init(**kwargs) -> None
+```
+
+<ParamField path="env_file" type="str" default=".env">
+  Path to the .env file to load environment variables from. Set to `None` or empty string to skip loading .env files.
+</ParamField>
+
+<ParamField path="configuration_file" type="str | List[str]">
+  Additional configuration file(s) to load. Can be a single file path or list of paths.
+</ParamField>
+
+<ParamField path="configuration" type="dict">
+  Configuration dictionary to load directly into the config object.
+</ParamField>
+
+### Configuration Loading Order
+
+Configuration files are loaded and merged in the following order (later files override earlier ones):
+
+1. **default_config.yml** - Built-in defaults from the discore package
+2. **config.yml** - Main configuration file in the working directory (if exists)
+3. **override.config.yml** - Override configuration file in the working directory (if exists)
+4. **configuration_file** parameter - Files specified via the `configuration_file` kwarg
+5. **DISCORE_CONFIG** environment variable - Files specified in the environment variable
+   - Use `:` to separate multiple files (e.g., `DISCORE_CONFIG=file1.yml:file2.yml`)
+6. **configuration** parameter - Dictionary passed via the `configuration` kwarg
+
+### Environment Variable Support
+
+The `env_file` parameter (defaults to `.env`) enables loading environment variables before configuration files. This allows using environment variables in YAML files:
+
+```yaml
+bot:
+  token: ${BOT_TOKEN}
+database:
+  url: ${DATABASE_URL}
+```
+
+### DISCORE_CONFIG Environment Variable
+
+Set the `DISCORE_CONFIG` environment variable to specify additional configuration files:
+
+```bash
+# Single file
+export DISCORE_CONFIG=production.yml
+
+# Multiple files (separated by colon)
+export DISCORE_CONFIG=base.yml:production.yml:secrets.yml
+```
+
+## load_config
+
+Load a configuration dictionary into the global config object.
+
+```python
+def load_config(configuration: dict, recursion_key: str = "override_config") -> None
+```
+
+<ParamField path="configuration" type="dict" required>
+  The configuration dictionary to merge into the global config object.
+</ParamField>
+
+<ParamField path="recursion_key" type="str" default="override_config">
+  Key to check for recursive configuration loading. If this key exists in the configuration, its value is treated as a path to another config file to load. Set to empty string or `None` to disable recursive loading.
+</ParamField>
+
+### Recursive Configuration
+
+The `recursion_key` parameter allows configuration files to reference other files:
+
+```yaml
+# config.yml
+bot:
+  prefix: "!"
+override_config: "environment/production.yml"
+```
+
+When loaded, this will automatically load and merge `environment/production.yml` into the configuration.
+
+```python
+from discore.utils import config_init, load_config
+
+# Initialize with defaults
+config_init(env_file=".env")
+
+# Load additional configuration
+load_config({
+    "bot": {
+        "prefix": "?",
+        "description": "My Bot"
+    }
+})
+```

@@ -1,0 +1,334 @@
+---
+title: 'Button'
+description: 'Interactive button component for views'
+---
+
+## Overview
+
+The `Button` class represents a clickable button in a Discord view. Buttons can have different styles, labels, emojis, and can be enabled or disabled. Discore re-exports discord.py's Button class.
+
+## Class Definition
+
+```python
+from discore.ui import Button
+
+class Button(discord.ui.Button):
+    """A button for a UI View."""
+```
+
+## Constructor
+
+```python
+Button(
+    *,
+    style: ButtonStyle = ButtonStyle.secondary,
+    label: str | None = None,
+    disabled: bool = False,
+    custom_id: str | None = None,
+    url: str | None = None,
+    emoji: str | Emoji | PartialEmoji | None = None,
+    row: int | None = None
+)
+```
+
+<ParamField path="style" type="ButtonStyle" default="ButtonStyle.secondary">
+  The button's visual style. Options:
+  - `ButtonStyle.primary` - Blurple button
+  - `ButtonStyle.secondary` - Grey button
+  - `ButtonStyle.success` - Green button
+  - `ButtonStyle.danger` - Red button
+  - `ButtonStyle.link` - Grey button with a URL (requires `url` parameter)
+</ParamField>
+
+<ParamField path="label" type="str | None" default="None">
+  The text displayed on the button. At least one of `label` or `emoji` must be provided.
+</ParamField>
+
+<ParamField path="disabled" type="bool" default="False">
+  Whether the button is disabled. Disabled buttons appear greyed out and cannot be clicked.
+</ParamField>
+
+<ParamField path="custom_id" type="str | None" default="None">
+  A unique identifier for the button (max 100 characters). Required for persistent views. Cannot be used with `url`.
+</ParamField>
+
+<ParamField path="url" type="str | None" default="None">
+  The URL to open when the button is clicked. Only works with `ButtonStyle.link`. Cannot be used with `custom_id`.
+</ParamField>
+
+<ParamField path="emoji" type="str | Emoji | PartialEmoji | None" default="None">
+  The emoji displayed on the button. Can be a Unicode emoji string, Discord emoji, or partial emoji. At least one of `label` or `emoji` must be provided.
+</ParamField>
+
+<ParamField path="row" type="int | None" default="None">
+  The row to place the button in (0-4). If not specified, buttons are placed automatically.
+</ParamField>
+
+## Decorator
+
+### @discord.ui.button
+
+```python
+@discord.ui.button(
+    *,
+    label: str | None = None,
+    custom_id: str | None = None,
+    disabled: bool = False,
+    style: ButtonStyle = ButtonStyle.secondary,
+    emoji: str | Emoji | PartialEmoji | None = None,
+    row: int | None = None
+)
+```
+
+Decorator for creating button callbacks in a View subclass. The decorated method will be called when the button is clicked.
+
+## Properties
+
+### style
+
+```python
+style: ButtonStyle
+```
+
+The button's visual style.
+
+### label
+
+```python
+label: str | None
+```
+
+The text displayed on the button.
+
+### disabled
+
+```python
+disabled: bool
+```
+
+Whether the button is disabled.
+
+### custom_id
+
+```python
+custom_id: str | None
+```
+
+The button's custom ID.
+
+### url
+
+```python
+url: str | None
+```
+
+The URL the button opens (link style only).
+
+### emoji
+
+```python
+emoji: str | Emoji | PartialEmoji | None
+```
+
+The emoji displayed on the button.
+
+### view
+
+```python
+view: View | None
+```
+
+The view this button is attached to.
+
+## Methods
+
+### callback
+
+```python
+async def callback(interaction: Interaction) -> None
+```
+
+The callback function called when the button is clicked. Override this method or use the decorator to define button behavior.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object containing information about the button click
+</ParamField>
+
+## Usage Examples
+
+### Using the Decorator
+
+```python
+from discore.ui import View, Button
+from discord import Interaction, ButtonStyle
+
+class MyView(View):
+    @discord.ui.button(label="Primary", style=ButtonStyle.primary)
+    async def primary_button(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Primary button clicked!", ephemeral=True)
+    
+    @discord.ui.button(label="Danger", style=ButtonStyle.danger)
+    async def danger_button(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Danger button clicked!", ephemeral=True)
+
+view = MyView()
+await ctx.send("Click a button:", view=view)
+```
+
+### Creating Buttons Manually
+
+```python
+from discore.ui import View, Button
+from discord import ButtonStyle
+
+class MyView(View):
+    def __init__(self):
+        super().__init__()
+        
+        # Create and add button
+        button = Button(label="Click Me", style=ButtonStyle.success, custom_id="my_button")
+        button.callback = self.button_callback
+        self.add_item(button)
+    
+    async def button_callback(self, interaction: Interaction):
+        await interaction.response.send_message("Button clicked!")
+
+view = MyView()
+await ctx.send("Interactive view:", view=view)
+```
+
+### Link Button
+
+```python
+class LinkView(View):
+    def __init__(self):
+        super().__init__()
+        
+        # Link buttons don't have callbacks
+        link_button = Button(
+            label="Documentation",
+            url="https://discord.py.readthedocs.io",
+            style=ButtonStyle.link
+        )
+        self.add_item(link_button)
+
+await ctx.send("Visit our docs:", view=LinkView())
+```
+
+### Button with Emoji
+
+```python
+class EmojiView(View):
+    @discord.ui.button(emoji="✅", label="Confirm", style=ButtonStyle.success)
+    async def confirm(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Confirmed!", ephemeral=True)
+    
+    @discord.ui.button(emoji="❌", label="Cancel", style=ButtonStyle.danger)
+    async def cancel(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Cancelled!", ephemeral=True)
+
+await ctx.send("Confirm or cancel:", view=EmojiView())
+```
+
+### Disabling Buttons
+
+```python
+class DisableView(View):
+    def __init__(self):
+        super().__init__()
+        self.clicked = False
+    
+    @discord.ui.button(label="Click Once", style=ButtonStyle.primary)
+    async def one_time_button(self, interaction: Interaction, button: Button):
+        if not self.clicked:
+            self.clicked = True
+            button.disabled = True
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("Button disabled!", ephemeral=True)
+```
+
+### Multiple Button Rows
+
+```python
+class MultiRowView(View):
+    def __init__(self):
+        super().__init__()
+    
+    # Row 0
+    @discord.ui.button(label="Button 1", row=0)
+    async def button1(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Button 1", ephemeral=True)
+    
+    @discord.ui.button(label="Button 2", row=0)
+    async def button2(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Button 2", ephemeral=True)
+    
+    # Row 1
+    @discord.ui.button(label="Button 3", row=1, style=ButtonStyle.success)
+    async def button3(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Button 3", ephemeral=True)
+```
+
+### Updating Button State
+
+```python
+class CounterView(View):
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+    
+    @discord.ui.button(label="Count: 0", style=ButtonStyle.primary)
+    async def counter(self, interaction: Interaction, button: Button):
+        self.count += 1
+        button.label = f"Count: {self.count}"
+        
+        # Update the message with the new view
+        await interaction.response.edit_message(view=self)
+
+view = CounterView()
+await ctx.send("Click to count:", view=view)
+```
+
+### Persistent Button
+
+```python
+class PersistentButtonView(View):
+    def __init__(self):
+        super().__init__(timeout=None)  # Persistent view
+    
+    @discord.ui.button(
+        label="Persistent",
+        style=ButtonStyle.primary,
+        custom_id="persistent_button_123"  # Required for persistent views
+    )
+    async def persistent_button(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("This works after bot restart!", ephemeral=True)
+
+# Register the view on bot startup
+bot.add_view(PersistentButtonView())
+```
+
+## Button Styles
+
+Visual representation of button styles:
+
+- **Primary** (`ButtonStyle.primary`): Blurple/blue button for primary actions
+- **Secondary** (`ButtonStyle.secondary`): Grey button for secondary actions
+- **Success** (`ButtonStyle.success`): Green button for positive actions
+- **Danger** (`ButtonStyle.danger`): Red button for destructive actions
+- **Link** (`ButtonStyle.link`): Grey button that opens a URL
+
+## Limitations
+
+- Maximum 25 components per view (5 rows × 5 buttons)
+- Maximum 5 buttons per row
+- Button labels can be up to 80 characters
+- Custom IDs can be up to 100 characters
+- Link buttons cannot have callbacks or custom IDs
+- At least one of `label` or `emoji` must be provided
+
+## Related
+
+- [View](/api/ui/view) - Container for buttons
+- [Select](/api/ui/select) - Dropdown menu component
+- [Modal](/api/ui/modal) - Modal dialog for text input

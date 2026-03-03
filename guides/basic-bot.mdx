@@ -1,0 +1,257 @@
+---
+title: Building Your First Bot
+description: A complete step-by-step guide to creating a basic Discord bot with Discore
+---
+
+This guide will walk you through creating your first Discord bot using Discore, from project setup to running your bot with custom commands.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- Python 3.6 or higher installed
+- A Discord bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
+- Basic knowledge of Python and async/await syntax
+
+## Installation
+
+First, install Discore using pip:
+
+```bash
+pip install git+https://github.com/Kyrela/discore
+```
+
+## Project Setup
+
+<Steps>
+  <Step title="Create Project Structure">
+    Create your project directory with the following structure:
+
+    ```
+    my-discord-bot/
+    ├── main.py
+    ├── config.yml
+    ├── cogs/
+    │   └── basic_commands.py
+    └── locales/
+        └── en-US.yml
+    ```
+
+    Create the directories:
+
+    ```bash
+    mkdir my-discord-bot
+    cd my-discord-bot
+    mkdir cogs locales
+    ```
+
+    <Note>
+      The `cogs` and `locales` directory names are required by Discore's convention over configuration philosophy.
+    </Note>
+  </Step>
+
+  <Step title="Configure Your Bot">
+    Create `config.yml` with your bot's essential settings:
+
+    ```yaml config.yml
+    prefix: "!"
+    token: "YOUR_BOT_TOKEN_HERE"
+    description: "My first Discord bot"
+    version: "1.0"
+    color: 0x5865F2
+    hot_reload: true
+    auto_sync: true
+    case_insensitive: true
+    locale: "en-US"
+
+    help:
+      cog: "system"
+      name: "help"
+      help: "Shows this message"
+      description: "Shows help about the bot, a command, or a category"
+      usage: "[command | category]"
+      brief: "Shows help about the bot"
+      aliases: ["h"]
+      enabled: true
+      hidden: false
+
+    log:
+      alert_user: true
+      stream: true
+      level: "INFO"
+    ```
+
+    <Warning>
+      Never commit your bot token to version control! See the [Environment Variables guide](/guides/environment-variables) to learn how to store it securely.
+    </Warning>
+  </Step>
+
+  <Step title="Create the Main Entry Point">
+    Create `main.py` with the bot initialization:
+
+    ```python main.py
+    import discore
+
+    # Initialize the bot with convention over configuration
+    bot = discore.Bot()
+
+    # Optional: Add bot-level commands here
+    @discore.command(
+        name="info",
+        brief="Get bot information",
+        description="Shows information about the bot"
+    )
+    async def info(ctx):
+        embed = discore.Embed(
+            title="Bot Information",
+            description=bot.description,
+            color=bot.color if hasattr(bot, 'color') else 0x5865F2
+        )
+        await ctx.send(embed=embed)
+
+    # Run the bot (token is read from config.yml)
+    bot.run()
+    ```
+
+    <Tip>
+      The `Bot()` class automatically reads `config.yml` if no configuration file is specified.
+    </Tip>
+  </Step>
+
+  <Step title="Create Your First Cog">
+    Create `cogs/basic_commands.py` with some basic commands:
+
+    ```python cogs/basic_commands.py
+    import discore
+
+    class BasicCommands(discore.Cog, name="basic", description="Basic bot commands"):
+        @discore.command(
+            name="ping",
+            brief="Check if the bot is online",
+            description="Responds with a simple message, useful to see if the bot is online"
+        )
+        async def ping(self, ctx):
+            await ctx.message.reply("Pong!")
+
+        @discore.command(
+            name="say",
+            brief="Say something",
+            description="Sends a message containing the string passed as an argument, and deletes the original message.",
+            help="- `message` : The string to send"
+        )
+        async def say(self, ctx, *, message: str):
+            await ctx.message.delete()
+            await ctx.send(message)
+
+        @discore.command(
+            name="echo",
+            brief="Echo a message",
+            description="Repeats your message back to you"
+        )
+        async def echo(self, ctx, *, text: str):
+            await ctx.send(f"You said: {text}")
+    ```
+
+    <Note>
+      The cog class name must match the filename in PascalCase. For `basic_commands.py`, the class must be named `BasicCommands`.
+    </Note>
+  </Step>
+
+  <Step title="Add Localization (Optional)">
+    Create `locales/en-US.yml` to customize help messages:
+
+    ```yaml locales/en-US.yml
+    help:
+      no_commands: "*No commands available*"
+      bot:
+        title: "Help Menu"
+        description: "Use `%{help_command} [command]` for more info on a command.\nYou can also use `%{help_command} [category]` for more info on a category."
+        no_category: "No category"
+      cog:
+        title: "%{cog} commands"
+        commands: "Commands"
+      command:
+        title: "%{command} command"
+        not_found: "No command called `%{command}` found."
+
+    command_error:
+      bad_argument: "One or more arguments are incorrect.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+      missing_argument: "One or more arguments are missing.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+
+    footer:
+      version: "ver. %{version}"
+    ```
+
+    <Tip>
+      Discore includes default English localizations. You only need to override the keys you want to customize.
+    </Tip>
+  </Step>
+
+  <Step title="Run Your Bot">
+    Start your bot by running:
+
+    ```bash
+    python main.py
+    ```
+
+    You should see output like:
+
+    ```
+    [2024-03-03 10:15:23] [INFO]    discore.bot: Bot initialising... discore v0.11, discord.py v2.x.x
+    [2024-03-03 10:15:24] [INFO]    discore.bot: Cogs successfully loaded: 'BasicCommands'
+    [2024-03-03 10:15:24] [INFO]    discore.bot: Connected to Discord as 'MyBot' (id : 123456789)
+    [2024-03-03 10:15:25] [INFO]    discore.bot: Bot launched in 1.234s, ready to use (prefix '!')
+    ```
+  </Step>
+
+  <Step title="Test Your Commands">
+    In Discord, try these commands:
+
+    - `!help` - View all available commands
+    - `!ping` - Test the bot's response
+    - `!say Hello, world!` - Make the bot repeat a message
+    - `!echo Testing` - Echo a message back
+    - `!help say` - Get detailed help for a specific command
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that you have a basic bot running, explore these guides:
+
+- [Creating Custom Cogs](/guides/custom-cogs) - Learn best practices for organizing commands
+- [Customizing the Help Command](/guides/help-command) - Personalize your bot's help system
+- [Using Environment Variables](/guides/environment-variables) - Secure your bot token
+- [Managing Multiple Environments](/guides/multiple-environments) - Set up dev and production configs
+
+## Understanding the Code
+
+### Bot Initialization
+
+The `discore.Bot()` class automatically:
+
+- Loads configuration from `config.yml`
+- Discovers and loads all cogs from the `cogs/` directory
+- Sets up the help command with embed formatting
+- Configures logging based on your settings
+- Handles errors and sends user-friendly messages
+
+### Command Decorators
+
+The `@discore.command()` decorator accepts these common parameters:
+
+- `name` - The command name (what users type)
+- `brief` - Short one-line description
+- `description` - Longer description for the help menu
+- `help` - Detailed usage information with examples
+- `aliases` - Alternative names for the command
+- `hidden` - Hide from help menu (default: `false`)
+
+### Automatic Features
+
+Discore provides these features out of the box:
+
+- **Error Handling** - Automatic error messages in the user's language
+- **Hot Reload** - Cogs reload when files change (if `hot_reload: true`)
+- **Auto Sync** - Slash commands sync automatically (if `auto_sync: true`)
+- **Case Insensitive** - Commands work regardless of case (if `case_insensitive: true`)

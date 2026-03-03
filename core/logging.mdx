@@ -1,0 +1,375 @@
+---
+title: Logging
+description: Comprehensive logging to console, files, and Discord channels with ANSI colors and automatic error tracking
+---
+
+Discore provides a powerful logging system that outputs to the console, log files, and Discord channels. It includes automatic error tracking, colorized console output, and detailed command error logging.
+
+## Logging Destinations
+
+Logs can be sent to three destinations simultaneously:
+
+1. **Console (stdout/stderr)** - Real-time monitoring during development
+2. **Log files** - Persistent record of bot activity
+3. **Discord channels** - Critical errors sent directly to your server
+
+## Configuration
+
+Configure logging in `config.yml`:
+
+```yaml config.yml
+log:
+  channel: 1234567890123456789  # Discord channel ID for error logs
+  file: "bot.log"                # Log file path
+  alert_user: true               # Send error messages to users
+  commands: false                # Log command usage (deprecated)
+  stream: true                   # Enable console logging
+  level: "INFO"                  # Minimum log level
+  root: true                     # Log discord.py events too
+  stream_to_err: true            # Use stderr instead of stdout
+  format: "[{asctime}] {levelformat} {name}: {message}"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  level_format:
+    debug: "[{bg_black}{bold}DEBUG{no_bold}{bg_normal}]   "
+    info: "[{blue}{bold}INFO{no_bold}{normal}]    "
+    warning: "[{yellow}{bold}WARNING{no_bold}{normal}] "
+    error: "[{red}ERROR{normal}]   "
+    critical: "[{bg_red}CRITICAL{bg_normal}]"
+```
+
+## Log Levels
+
+Discore supports standard Python logging levels:
+
+| Level | When to Use | Example |
+|-------|-------------|----------|
+| `DEBUG` | Detailed diagnostic info | Variable values, state changes |
+| `INFO` | General informational events | Bot connected, cog loaded |
+| `WARNING` | Warning messages | Deprecated feature used, recoverable error |
+| `ERROR` | Error messages | Command failed, API error |
+| `CRITICAL` | Critical failures | Database down, fatal error |
+
+Set the minimum level in config:
+
+```yaml
+log:
+  level: "INFO"  # Won't show DEBUG messages
+```
+
+## Console Logging
+
+### ANSI Color Support
+
+Discore uses ANSI escape codes for colorized console output:
+
+```
+[2024-03-03 12:00:00] [INFO]    discore.bot: Bot initialising... discore v0.11, discord.py v2.3.2
+[2024-03-03 12:00:01] [INFO]    discore.bot: Cogs successfully loaded: 'Moderation', 'Fun', 'Utility'
+[2024-03-03 12:00:02] [INFO]    discore.bot: Connected to Discord as 'MyBot' (id : '123456789')
+[2024-03-03 12:00:03] [INFO]    discore.bot: Bot launched in 3.142s, ready to use (prefix '!')
+```
+
+Colors are automatically disabled when:
+- Logging to a file
+- Output is redirected to a non-terminal
+
+### Available ANSI Codes
+
+You can customize `log.level_format` with these codes:
+
+**Foreground Colors:**
+- `{black}`, `{red}`, `{green}`, `{orange}`, `{blue}`, `{magenta}`, `{cyan}`, `{light_grey}`
+- `{dark_grey}`, `{light_red}`, `{light_green}`, `{yellow}`, `{light_blue}`, `{light_purple}`, `{teal}`, `{white}`
+- `{normal}` - Reset to default
+
+**Background Colors:**
+- `{bg_black}`, `{bg_red}`, `{bg_green}`, `{bg_orange}`, `{bg_blue}`, `{bg_magenta}`, `{bg_cyan}`, `{bg_light_grey}`
+- `{bg_dark_grey}`, `{bg_light_red}`, `{bg_light_green}`, `{bg_yellow}`, `{bg_light_blue}`, `{bg_light_purple}`, `{bg_teal}`, `{bg_white}`
+- `{bg_normal}` - Reset to default
+
+**Text Styles:**
+- `{bold}`, `{no_bold}`, `{faint}`, `{no_faint}`, `{italic}`, `{no_italic}`
+- `{underline}`, `{no_underline}`, `{blink}`, `{no_blink}`
+- `{reverse}`, `{no_reverse}`, `{conceal}`, `{no_conceal}`, `{crossed}`, `{no_crossed}`
+- `{reset}` - Reset all formatting
+
+### Custom Format
+
+Customize the log format with these variables:
+
+```yaml
+log:
+  format: "[{asctime}] {levelformat} {name}: {message}"
+```
+
+**Available variables:**
+- `{asctime}` - Timestamp formatted according to `date_format`
+- `{levelformat}` - Level-specific formatting from `level_format`
+- `{name}` - Logger name (e.g., `discore.bot`, `discord.gateway`)
+- `{levelname}` - Log level name (e.g., `INFO`, `ERROR`)
+- `{message}` - The log message
+
+## File Logging
+
+Enable file logging to keep persistent records:
+
+```yaml
+log:
+  file: "logs/bot.log"
+```
+
+The file:
+- Is created automatically if it doesn't exist
+- Uses the same format as console logs but without ANSI colors
+- Appends new logs (doesn't overwrite)
+
+<Tip>
+  Use a log rotation tool like `logrotate` (Linux) or `logging.handlers.RotatingFileHandler` to prevent log files from growing too large.
+</Tip>
+
+## Discord Channel Logging
+
+Send critical errors directly to a Discord channel:
+
+```yaml
+log:
+  channel: 1234567890123456789  # Your error log channel ID
+```
+
+When enabled, errors are sent as embeds with detailed information:
+
+```
+📛 'ping' command failed for 'User#1234' (123456789)
+
+Server: My Server (987654321)
+Command: ping
+Author: User#1234 (123456789)
+Original message: !ping
+Link to message: https://discord.com/channels/...
+
+File: commands.py
+Line: 42
+Error: ValueError
+Description: invalid literal for int()
+
+```python
+Traceback (most recent call last):
+  File "commands.py", line 42, in ping
+    value = int("not a number")
+ValueError: invalid literal for int() with base 10: 'not a number'
+```
+```
+
+<Note>
+  Only errors (level ERROR and above) are sent to Discord. INFO and DEBUG messages only go to console/file.
+</Note>
+
+## Command Logging (Deprecated)
+
+The `log.commands` option logs every command invocation and completion:
+
+```yaml
+log:
+  commands: true  # Deprecated in v0.4
+```
+
+<Warning>
+  This feature is **deprecated as of version 0.4** and may be removed in future versions. It can generate excessive logs in active bots.
+</Warning>
+
+When enabled, logs look like:
+
+```
+[INFO] 'ping' command request sent by 'User#1234' (123456789) with invocation '!ping'
+[INFO] 'ping' command succeeded for 'User#1234' (123456789) with a response starting with the text 'Pong!'
+```
+
+## Logging Functions
+
+Discore provides utility functions for logging:
+
+### log_command_error()
+
+```python
+async def log_command_error(
+    ctx_i: Union[commands.Context, discord.Interaction],
+    err: Exception,
+    logger: logging.Logger = logging.getLogger(__name__)
+) -> None
+```
+
+Logs command errors with full context. Called automatically by `handle_error()`.
+
+**What it does:**
+1. Extracts error details (file, line, function, error type)
+2. Sends user-friendly error message (if `log.alert_user` is enabled)
+3. Logs to console/file with full traceback
+4. Sends detailed embed to Discord log channel (if configured)
+
+```python
+import logging
+from discore import log_command_error
+
+_log = logging.getLogger(__name__)
+
+@bot.command()
+async def test(ctx):
+    try:
+        # Command code
+        raise ValueError("Something went wrong")
+    except Exception as e:
+        await log_command_error(ctx, e, logger=_log)
+```
+
+### log_data()
+
+```python
+async def log_data(
+    bot: discord.Client,
+    message: str,
+    data: dict,
+    logger: logging.Logger = logging.getLogger(__name__),
+    level: int = logging.ERROR,
+    exc_info: Union[bool, tuple] = True
+) -> None
+```
+
+Logs structured data to console, file, and Discord channel.
+
+<ParamField path="bot" type="discord.Client" required>
+  The bot instance.
+</ParamField>
+
+<ParamField path="message" type="str" required>
+  The main log message.
+</ParamField>
+
+<ParamField path="data" type="dict" required>
+  Contextual information to log (displayed as embed fields in Discord).
+</ParamField>
+
+<ParamField path="logger" type="logging.Logger">
+  Logger to use. Defaults to module logger.
+</ParamField>
+
+<ParamField path="level" type="int" default="logging.ERROR">
+  Log level (DEBUG=10, INFO=20, WARNING=30, ERROR=40, CRITICAL=50).
+</ParamField>
+
+<ParamField path="exc_info" type="bool | tuple" default="True">
+  Include exception traceback. `True` uses current exception, or pass `sys.exc_info()` tuple.
+</ParamField>
+
+```python
+import logging
+from discore import log_data
+
+_log = logging.getLogger(__name__)
+
+try:
+    # Some operation
+    raise RuntimeError("Database connection failed")
+except Exception as e:
+    await log_data(
+        bot,
+        "Critical database error",
+        {
+            "Database": "PostgreSQL",
+            "Host": "localhost:5432",
+            "User": "bot_user",
+            "Error": str(e)
+        },
+        logger=_log,
+        level=logging.CRITICAL
+    )
+```
+
+## User Error Alerts
+
+When `log.alert_user` is enabled, users receive error messages when commands fail:
+
+```yaml
+log:
+  alert_user: true
+```
+
+Example user-facing error message:
+
+```
+An exceptional error has occurred. The bug has been automatically reported, please be patient. Detail of the error:
+```
+File 'commands.py', line '42', function 'transfer_money'
+ValueError: insufficient funds
+```
+```
+
+Messages are localized based on the user's Discord locale. See [Localization](/core/localization) for translation keys.
+
+<Note>
+  Set `alert_user: false` if you prefer silent error handling or custom error messages.
+</Note>
+
+## Logging Best Practices
+
+### Development
+
+```yaml config.yml (development)
+log:
+  stream: true
+  level: "DEBUG"        # Show all messages
+  root: true            # Include discord.py logs
+  stream_to_err: true
+  file: "dev.log"
+  channel: null         # No Discord logging in dev
+```
+
+### Production
+
+```yaml config.yml (production)
+log:
+  stream: true
+  level: "INFO"         # Hide debug messages
+  root: false           # Only Discore logs
+  stream_to_err: true
+  file: "logs/bot.log"
+  channel: ${ERROR_LOG_CHANNEL}  # Send errors to Discord
+  alert_user: true
+```
+
+## Custom Loggers
+
+Create custom loggers for different parts of your bot:
+
+```python
+import logging
+
+# Create logger for your module
+_log = logging.getLogger(__name__)
+
+@bot.command()
+async def custom(ctx):
+    _log.info("Custom command invoked")
+    _log.debug(f"Context: {ctx}")
+    _log.warning("This is a warning")
+    _log.error("This is an error")
+```
+
+With `log.root: true`, these will use Discore's formatting. With `log.root: false`, only Discore and discord.py loggers are configured.
+
+## Disabling Specific Loggers
+
+```python
+import logging
+
+# Disable discord.py gateway logs
+logging.getLogger('discord.gateway').setLevel(logging.WARNING)
+
+# Disable discord.py HTTP logs
+logging.getLogger('discord.http').setLevel(logging.WARNING)
+```
+
+## Related
+
+- [Configuration](/core/configuration) - Full logging configuration reference
+- [Error Handling](/core/error-handling) - How errors are logged automatically
+- [Localization](/core/localization) - Error message translations

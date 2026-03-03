@@ -1,0 +1,503 @@
+---
+title: 'Modal'
+description: 'Interactive modal dialog for collecting text input from users'
+---
+
+## Overview
+
+The `Modal` class represents a popup dialog that can collect text input from users. Modals can contain multiple text input fields and are displayed as an overlay on the Discord client. Discore re-exports discord.py's Modal class.
+
+## Class Definition
+
+```python
+from discore.ui import Modal
+
+class Modal(discord.ui.Modal):
+    """A popup form for collecting user input."""
+```
+
+## Constructor
+
+```python
+Modal(
+    *,
+    title: str,
+    timeout: float | None = None,
+    custom_id: str | None = None
+)
+```
+
+<ParamField path="title" type="str" required>
+  The title of the modal displayed at the top (max 45 characters).
+</ParamField>
+
+<ParamField path="timeout" type="float | None" default="None">
+  The timeout in seconds before the modal expires. `None` means no timeout.
+</ParamField>
+
+<ParamField path="custom_id" type="str | None" default="None">
+  A unique identifier for the modal (max 100 characters).
+</ParamField>
+
+## Methods
+
+### on_submit
+
+```python
+async def on_submit(interaction: Interaction) -> None
+```
+
+Called when the modal is submitted. Override this method to handle the submitted data.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object containing the submitted modal data
+</ParamField>
+
+### on_error
+
+```python
+async def on_error(interaction: Interaction, error: Exception) -> None
+```
+
+Called when an error occurs during modal submission.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object that caused the error
+</ParamField>
+
+<ParamField path="error" type="Exception" required>
+  The exception that was raised
+</ParamField>
+
+### on_timeout
+
+```python
+async def on_timeout() -> None
+```
+
+Called when the modal times out before submission.
+
+### add_item
+
+```python
+def add_item(item: TextInput) -> Modal
+```
+
+Adds a TextInput to the modal.
+
+<ParamField path="item" type="TextInput" required>
+  The text input field to add
+</ParamField>
+
+**Returns:** `Modal` - The modal instance for method chaining
+
+### remove_item
+
+```python
+def remove_item(item: TextInput) -> Modal
+```
+
+Removes a TextInput from the modal.
+
+<ParamField path="item" type="TextInput" required>
+  The text input field to remove
+</ParamField>
+
+**Returns:** `Modal` - The modal instance for method chaining
+
+### stop
+
+```python
+def stop() -> None
+```
+
+Stops the modal and prevents further submissions.
+
+### wait
+
+```python
+async def wait() -> bool
+```
+
+Waits until the modal is submitted or times out.
+
+**Returns:** `bool` - `True` if the modal timed out, `False` if it was submitted
+
+## Properties
+
+### title
+
+```python
+title: str
+```
+
+The title of the modal.
+
+### custom_id
+
+```python
+custom_id: str
+```
+
+The modal's custom ID.
+
+### children
+
+```python
+children: list[TextInput]
+```
+
+List of all TextInput items in the modal (read-only).
+
+## TextInput Component
+
+Modals use TextInput components to collect user input. See [TextInput](/api/ui/text-input) for detailed documentation.
+
+```python
+from discore.ui import TextInput
+from discord import TextStyle
+
+TextInput(
+    label: str,
+    style: TextStyle = TextStyle.short,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    default: str | None = None,
+    required: bool = True,
+    min_length: int | None = None,
+    max_length: int | None = None,
+    row: int | None = None
+)
+```
+
+## Usage Examples
+
+### Basic Modal
+
+```python
+from discore.ui import Modal, TextInput
+from discord import Interaction, TextStyle
+
+class FeedbackModal(Modal):
+    def __init__(self):
+        super().__init__(title="Feedback Form")
+        
+        # Add text inputs
+        self.add_item(TextInput(
+            label="What's your feedback?",
+            style=TextStyle.paragraph,
+            placeholder="Tell us what you think...",
+            required=True,
+            max_length=1000
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        feedback = self.children[0].value
+        await interaction.response.send_message(
+            f"Thanks for your feedback: {feedback}",
+            ephemeral=True
+        )
+
+# Show the modal in response to a button click
+@discord.ui.button(label="Give Feedback")
+async def feedback_button(self, interaction: Interaction, button: Button):
+    await interaction.response.send_modal(FeedbackModal())
+```
+
+### Modal with Multiple Fields
+
+```python
+class RegistrationModal(Modal):
+    def __init__(self):
+        super().__init__(title="User Registration")
+        
+        # Short text input
+        self.add_item(TextInput(
+            label="Username",
+            placeholder="Enter your username",
+            min_length=3,
+            max_length=20,
+            required=True
+        ))
+        
+        # Email input
+        self.add_item(TextInput(
+            label="Email",
+            placeholder="user@example.com",
+            required=True
+        ))
+        
+        # Bio (paragraph)
+        self.add_item(TextInput(
+            label="Bio",
+            style=TextStyle.paragraph,
+            placeholder="Tell us about yourself...",
+            required=False,
+            max_length=500
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        username = self.children[0].value
+        email = self.children[1].value
+        bio = self.children[2].value
+        
+        await interaction.response.send_message(
+            f"Registration complete!\n"
+            f"Username: {username}\n"
+            f"Email: {email}\n"
+            f"Bio: {bio or 'N/A'}",
+            ephemeral=True
+        )
+```
+
+### Modal with Default Values
+
+```python
+class EditProfileModal(Modal):
+    def __init__(self, current_name: str, current_bio: str):
+        super().__init__(title="Edit Profile")
+        
+        self.add_item(TextInput(
+            label="Display Name",
+            default=current_name,
+            max_length=32
+        ))
+        
+        self.add_item(TextInput(
+            label="Bio",
+            style=TextStyle.paragraph,
+            default=current_bio,
+            max_length=200,
+            required=False
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        new_name = self.children[0].value
+        new_bio = self.children[1].value
+        
+        # Update profile in database...
+        await interaction.response.send_message(
+            "Profile updated!",
+            ephemeral=True
+        )
+
+# Use with existing data
+modal = EditProfileModal(
+    current_name="John Doe",
+    current_bio="Hello, I'm John!"
+)
+await interaction.response.send_modal(modal)
+```
+
+### Modal with Error Handling
+
+```python
+class SafeModal(Modal):
+    def __init__(self):
+        super().__init__(title="Submit Data")
+        
+        self.add_item(TextInput(
+            label="Data",
+            placeholder="Enter data here..."
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        try:
+            data = self.children[0].value
+            # Process data (might raise exception)
+            result = await process_data(data)
+            await interaction.response.send_message(
+                f"Success: {result}",
+                ephemeral=True
+            )
+        except ValueError as e:
+            await interaction.response.send_message(
+                f"Invalid data: {e}",
+                ephemeral=True
+            )
+    
+    async def on_error(self, interaction: Interaction, error: Exception):
+        await interaction.response.send_message(
+            "An error occurred while processing your submission.",
+            ephemeral=True
+        )
+        # Log the error
+        print(f"Modal error: {error}")
+```
+
+### Modal with Timeout
+
+```python
+class TimedModal(Modal):
+    def __init__(self):
+        super().__init__(title="Quick Survey", timeout=60.0)  # 60 seconds
+        
+        self.add_item(TextInput(
+            label="Quick question",
+            placeholder="Answer within 60 seconds..."
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        answer = self.children[0].value
+        await interaction.response.send_message(
+            f"Your answer: {answer}",
+            ephemeral=True
+        )
+    
+    async def on_timeout(self):
+        print("Modal timed out without submission")
+```
+
+### Modal from Button Interaction
+
+```python
+from discore.ui import View, Button, Modal, TextInput
+
+class ModalView(View):
+    @discord.ui.button(label="Open Form", style=ButtonStyle.primary)
+    async def open_modal(self, interaction: Interaction, button: Button):
+        # Create and send modal
+        modal = FormModal()
+        await interaction.response.send_modal(modal)
+
+class FormModal(Modal):
+    def __init__(self):
+        super().__init__(title="Contact Form")
+        
+        self.add_item(TextInput(
+            label="Subject",
+            placeholder="What's this about?"
+        ))
+        
+        self.add_item(TextInput(
+            label="Message",
+            style=TextStyle.paragraph,
+            placeholder="Your message here...",
+            max_length=1000
+        ))
+    
+    async def on_submit(self, interaction: Interaction):
+        subject = self.children[0].value
+        message = self.children[1].value
+        
+        # Send to support system...
+        await interaction.response.send_message(
+            "Your message has been submitted!",
+            ephemeral=True
+        )
+
+await ctx.send("Click to open the form:", view=ModalView())
+```
+
+### Dynamic Modal
+
+```python
+class DynamicModal(Modal):
+    def __init__(self, fields: list[dict]):
+        super().__init__(title="Dynamic Form")
+        
+        # Add fields dynamically
+        for field in fields[:5]:  # Max 5 fields
+            self.add_item(TextInput(
+                label=field.get("label", "Field"),
+                placeholder=field.get("placeholder"),
+                required=field.get("required", True),
+                style=field.get("style", TextStyle.short)
+            ))
+    
+    async def on_submit(self, interaction: Interaction):
+        # Collect all values
+        values = [child.value for child in self.children]
+        
+        await interaction.response.send_message(
+            f"Submitted {len(values)} fields",
+            ephemeral=True
+        )
+
+# Use with dynamic configuration
+fields = [
+    {"label": "Name", "placeholder": "Your name"},
+    {"label": "Email", "placeholder": "your@email.com"},
+    {"label": "Comments", "style": TextStyle.paragraph, "required": False}
+]
+
+modal = DynamicModal(fields)
+await interaction.response.send_modal(modal)
+```
+
+### Accessing Modal Values
+
+```python
+class SurveyModal(Modal):
+    # Define as class attributes for easier access
+    name = TextInput(label="Name", max_length=50)
+    age = TextInput(label="Age", max_length=3)
+    feedback = TextInput(
+        label="Feedback",
+        style=TextStyle.paragraph,
+        max_length=500
+    )
+    
+    def __init__(self):
+        super().__init__(title="Survey")
+    
+    async def on_submit(self, interaction: Interaction):
+        # Access values directly from attributes
+        await interaction.response.send_message(
+            f"Name: {self.name.value}\n"
+            f"Age: {self.age.value}\n"
+            f"Feedback: {self.feedback.value}",
+            ephemeral=True
+        )
+```
+
+### Validation Example
+
+```python
+class ValidatedModal(Modal):
+    email_input = TextInput(label="Email", placeholder="user@example.com")
+    
+    def __init__(self):
+        super().__init__(title="Email Form")
+    
+    async def on_submit(self, interaction: Interaction):
+        email = self.email_input.value
+        
+        # Validate email format
+        if "@" not in email or "." not in email:
+            await interaction.response.send_message(
+                "Please enter a valid email address!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.send_message(
+            f"Email {email} registered!",
+            ephemeral=True
+        )
+```
+
+## Limitations
+
+- Maximum 5 TextInput components per modal
+- Modal title has a 45 character limit
+- Modals must be sent in response to an interaction
+- Cannot be sent in response to a message component if that component already opened a modal
+- Modals are ephemeral and cannot be seen by other users
+- Once submitted or closed, a modal cannot be reopened
+
+## Best Practices
+
+1. **Keep it simple**: Only ask for essential information
+2. **Use placeholders**: Help users understand what to enter
+3. **Set appropriate lengths**: Use min_length and max_length to enforce valid input
+4. **Validate input**: Check submitted data in on_submit before processing
+5. **Handle errors**: Always implement on_error for production modals
+6. **Use paragraph style**: For longer text, use TextStyle.paragraph
+7. **Mark optional fields**: Set required=False for non-essential fields
+
+## Related
+
+- [TextInput](/api/ui/text-input) - Text input component for modals
+- [View](/api/ui/view) - Alternative UI container for buttons and selects
+- [Button](/api/ui/button) - Button component (often used to trigger modals)

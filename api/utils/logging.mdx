@@ -1,0 +1,151 @@
+---
+title: Logging Utilities
+description: Utilities for initializing and configuring the logging system with ANSI color support
+---
+
+## logging_init
+
+Initialize the logging system with console and file handlers.
+
+```python
+def logging_init(**kwargs) -> None
+```
+
+<ParamField path="log_level" type="str | int">
+  Logging level (e.g., "DEBUG", "INFO", "WARNING", "ERROR"). Defaults to `config.log.level`.
+</ParamField>
+
+<ParamField path="log_stream" type="bool">
+  Whether to enable console logging output. Defaults to `config.log.stream`.
+</ParamField>
+
+<ParamField path="log_file" type="str">
+  Path to log file for file-based logging. If specified, creates a file handler. Defaults to `config.log.file`.
+</ParamField>
+
+<ParamField path="root_logger" type="bool">
+  If `True`, configures the root logger. If `False`, only configures the "discore" and "discord" loggers. Defaults to `config.log.root`.
+</ParamField>
+
+<ParamField path="formatter" type="logging.Formatter">
+  Custom formatter to use instead of the default `Formatter` class.
+</ParamField>
+
+<ParamField path="stream" type="io.TextIOBase">
+  Custom stream for the stream handler. Defaults to `sys.stderr` if `config.log.stream_to_err` is `True`, otherwise `sys.stdout`.
+</ParamField>
+
+<ParamField path="log_handler" type="logging.StreamHandler">
+  Custom stream handler instance to use instead of creating a new one.
+</ParamField>
+
+### Handler Configuration
+
+The logging system sets up handlers based on the parameters:
+
+- **Console Handler**: Created if `log_stream` is `True`, outputs to stdout/stderr with ANSI colors
+- **File Handler**: Created if `log_file` is specified, outputs to file without colors
+
+Both handlers use the same log level and respect the `formatter` parameter if provided.
+
+```python
+from discore.utils import logging_init
+import logging
+
+# Basic initialization with console output
+logging_init(log_level="DEBUG")
+
+# With file logging
+logging_init(
+    log_level="INFO",
+    log_stream=True,
+    log_file="bot.log"
+)
+
+# Custom formatter
+logging_init(
+    formatter=logging.Formatter('[%(levelname)s] %(message)s')
+)
+```
+
+## Formatter
+
+Custom logging formatter with ANSI color support for terminal output.
+
+```python
+class Formatter(logging.Formatter):
+    def __init__(self, color: bool = True, *args, **kwargs)
+```
+
+<ParamField path="color" type="bool" default="True">
+  Enable ANSI color codes in formatted output. Set to `False` for file logging.
+</ParamField>
+
+The `Formatter` class reads format strings from `config.log.format` and `config.log.level_format`, applying ANSI color codes from the `_ainsi` dictionary.
+
+### Format Configuration
+
+The formatter uses configuration from the config object:
+
+- **config.log.format**: Main format string with `{levelformat}` placeholder
+- **config.log.level_format**: Dictionary mapping log levels to their format strings
+- **config.log.date_format**: Date/time format string
+
+### Exception Formatting
+
+When `color=True`, exception tracebacks are automatically displayed in red using ANSI codes.
+
+```python
+from discore.utils import Formatter
+import logging
+
+# Colored formatter for console
+console_formatter = Formatter(color=True)
+
+# Non-colored formatter for file
+file_formatter = Formatter(color=False)
+
+# Use with handler
+handler = logging.StreamHandler()
+handler.setFormatter(console_formatter)
+```
+
+## \_ainsi
+
+Dictionary containing ANSI escape codes for terminal colors and text formatting.
+
+<ResponseField name="_ainsi" type="dict[str, str]">
+  Mapping of color/style names to ANSI escape sequences.
+</ResponseField>
+
+### Foreground Colors
+
+```python
+"black", "red", "green", "orange", "blue", "magenta", "cyan", "light_grey", "normal"
+"dark_grey", "light_red", "light_green", "yellow", "light_blue", "light_purple", "teal", "white"
+```
+
+### Background Colors
+
+```python
+"bg_black", "bg_red", "bg_green", "bg_orange", "bg_blue", "bg_magenta", "bg_cyan", "bg_light_grey", "bg_normal"
+"bg_dark_grey", "bg_light_red", "bg_light_green", "bg_yellow", "bg_light_blue", "bg_light_purple", "bg_teal", "bg_white"
+```
+
+### Text Styles
+
+```python
+"bold", "no_bold", "faint", "no_faint", "italic", "no_italic", "underline", "no_underline"
+"blink", "no_blink", "reverse", "no_reverse", "conceal", "no_conceal", "crossed", "no_crossed"
+"reset"  # Reset all formatting
+```
+
+### Example Usage
+
+```python
+from discore.utils import _ainsi
+
+print(f"{_ainsi['red']}Error: Something went wrong{_ainsi['reset']}")
+print(f"{_ainsi['bold']}{_ainsi['green']}Success!{_ainsi['reset']}")
+print(f"{_ainsi['bg_blue']}{_ainsi['white']}Info{_ainsi['reset']}")
+```

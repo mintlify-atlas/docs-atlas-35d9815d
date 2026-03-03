@@ -1,0 +1,399 @@
+---
+title: Configuration
+description: Configure your bot with YAML files, environment variables, and multiple configuration sources
+---
+
+Discore uses a flexible YAML-based configuration system with support for environment variables, multiple config files, and override configurations.
+
+## Configuration File Structure
+
+Create a `config.yml` file at the root of your project:
+
+```yaml config.yml
+prefix: "!"
+token: "YOUR_BOT_TOKEN_HERE"
+description: "A Discord bot built with Discore"
+version: "1.0.0"
+color: 0x35901E
+hot_reload: true
+auto_sync: true
+case_insensitive: true
+locale: "en-US"
+
+help:
+  cog: "utility"
+  name: "help"
+  brief: "Shows help"
+  description: "Shows help about the bot, a command, or a category"
+  usage: "[command | category]"
+  aliases: ["h", "hp"]
+  enabled: true
+  hidden: false
+
+log:
+  channel: 1234567890123456789
+  file: "bot.log"
+  alert_user: true
+  commands: false
+  stream: true
+  level: "INFO"
+  root: true
+  stream_to_err: true
+  format: "[{asctime}] {levelformat} {name}: {message}"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  level_format:
+    debug: "[{bg_black}{bold}DEBUG{no_bold}{bg_normal}]   "
+    info: "[{blue}{bold}INFO{no_bold}{normal}]    "
+    warning: "[{yellow}{bold}WARNING{no_bold}{normal}] "
+    error: "[{red}ERROR{normal}]   "
+    critical: "[{bg_red}CRITICAL{bg_normal}]"
+
+override_config: override.config.yml
+```
+
+## Configuration Fields
+
+### Bot Settings
+
+<ParamField path="prefix" type="str" default="!" required>
+  The command prefix for text commands.
+</ParamField>
+
+<ParamField path="token" type="str" required>
+  Your Discord bot token. **Required** unless passed to `bot.run()`.
+</ParamField>
+
+<ParamField path="description" type="str">
+  Description of your bot. Shown in the help command.
+</ParamField>
+
+<ParamField path="version" type="str">
+  Version number of your bot. Displayed in embed footers and logs.
+</ParamField>
+
+<ParamField path="color" type="int">
+  Default color for bot embeds (hex color as integer, e.g., `0x35901E`).
+</ParamField>
+
+<ParamField path="locale" type="str" default="en-US">
+  Default locale for localization. See [Localization](/core/localization) for supported locales.
+</ParamField>
+
+### Feature Flags
+
+<ParamField path="hot_reload" type="bool" default="true">
+  Enable hot-reloading of cogs and localization files during development. Set to `false` in production for better performance.
+</ParamField>
+
+<ParamField path="auto_sync" type="bool" default="true">
+  Automatically sync slash commands on bot startup. Disable in production to avoid rate limits.
+</ParamField>
+
+<ParamField path="case_insensitive" type="bool" default="true">
+  Make command names and prefixes case-insensitive (`!ping` = `!PING` = `!PiNg`).
+</ParamField>
+
+### Help Command Configuration
+
+The `help` section configures the built-in help command:
+
+<ParamField path="help.cog" type="str">
+  Name of the cog that should own the help command (PascalCase class name).
+</ParamField>
+
+<ParamField path="help.name" type="str" default="help">
+  Name of the help command.
+</ParamField>
+
+<ParamField path="help.brief" type="str">
+  Short description shown in command lists.
+</ParamField>
+
+<ParamField path="help.description" type="str">
+  Detailed description of the help command.
+</ParamField>
+
+<ParamField path="help.help" type="str">
+  Extended help text for the help command.
+</ParamField>
+
+<ParamField path="help.usage" type="str">
+  Custom usage string (e.g., `[command | category]`).
+</ParamField>
+
+<ParamField path="help.aliases" type="list[str]" default="[]">
+  Alternative names for the help command (e.g., `["h", "hp"]`).
+</ParamField>
+
+<ParamField path="help.cooldown" type="int">
+  Cooldown in seconds for the help command.
+</ParamField>
+
+<ParamField path="help.enabled" type="bool" default="true">
+  Whether the help command is enabled.
+</ParamField>
+
+<ParamField path="help.hidden" type="bool" default="false">
+  Whether to hide the help command from the help menu.
+</ParamField>
+
+### Logging Configuration
+
+The `log` section controls logging behavior:
+
+<ParamField path="log.channel" type="int">
+  Discord channel ID where error logs and important events should be sent.
+</ParamField>
+
+<ParamField path="log.file" type="str">
+  Path to log file. Created automatically if it doesn't exist.
+</ParamField>
+
+<ParamField path="log.alert_user" type="bool" default="true">
+  Send error messages to users when commands fail.
+</ParamField>
+
+<ParamField path="log.commands" type="bool" default="false">
+  **Deprecated in 0.4**. Log command invocations and completions.
+</ParamField>
+
+<ParamField path="log.stream" type="bool" default="true">
+  Enable console logging output.
+</ParamField>
+
+<ParamField path="log.level" type="str" default="INFO">
+  Minimum log level to display. Options: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.
+</ParamField>
+
+<ParamField path="log.root" type="bool" default="true">
+  Log the entire Python logging hierarchy (including discord.py). Set to `false` to only log Discore events.
+</ParamField>
+
+<ParamField path="log.stream_to_err" type="bool" default="true">
+  Write logs to stderr instead of stdout.
+</ParamField>
+
+<ParamField path="log.format" type="str" default="[{asctime}] {levelformat} {name}: {message}">
+  Format string for log messages. Available variables: `{asctime}`, `{name}`, `{levelname}`, `{message}`, `{levelformat}`.
+</ParamField>
+
+<ParamField path="log.date_format" type="str" default="%Y-%m-%d %H:%M:%S">
+  Date/time format for `{asctime}` in logs.
+</ParamField>
+
+<ParamField path="log.level_format" type="dict">
+  Custom formatting for each log level with ANSI color codes. See [Logging](/core/logging) for details.
+</ParamField>
+
+### Override Configuration
+
+<ParamField path="override_config" type="str">
+  Path to an override configuration file that takes precedence over the main config.
+</ParamField>
+
+## Environment Variables
+
+Discore supports environment variables using the `yamlenv` library. Use the `${VAR_NAME}` syntax:
+
+```yaml config.yml
+token: ${DISCORD_BOT_TOKEN}
+log:
+  channel: ${LOG_CHANNEL_ID}
+  file: ${LOG_FILE_PATH:bot.log}  # Default value after colon
+```
+
+Create a `.env` file:
+
+```bash .env
+DISCORD_BOT_TOKEN=your_token_here
+LOG_CHANNEL_ID=1234567890123456789
+```
+
+Load it in your bot:
+
+```python main.py
+import discore
+
+bot = discore.Bot(env_file=".env")  # Defaults to .env
+bot.run()
+```
+
+<Warning>
+  Never commit your `.env` file or tokens to version control. Add `.env` to your `.gitignore`.
+</Warning>
+
+## Override Configuration Files
+
+Use override files for environment-specific settings:
+
+1. **Main config** (`config.yml`) - Shared settings
+2. **Override config** (`override.config.yml`) - Local/environment-specific settings
+
+```yaml config.yml
+prefix: "!"
+description: "My Bot"
+locale: "en-US"
+override_config: override.config.yml
+```
+
+```yaml override.config.yml
+token: ${DEV_BOT_TOKEN}
+log:
+  level: "DEBUG"
+  stream: true
+```
+
+Add `override.config.yml` to `.gitignore` so each developer can have their own settings.
+
+## Configuration Loading Order
+
+Configuration is loaded in this order (later sources override earlier ones):
+
+1. **Built-in defaults** - `discore/default_config.yml`
+2. **Main config** - `config.yml` (if exists)
+3. **Override config** - `override.config.yml` (if exists or specified in config)
+4. **Additional files** - Passed via `configuration_file` parameter
+5. **Environment variable** - Files in `DISCORE_CONFIG` env var (colon-separated)
+6. **Direct configuration** - Dictionary passed to `configuration` parameter
+
+```python
+import discore
+
+bot = discore.Bot(
+    configuration_file=["base.yml", "production.yml"],  # Load multiple files
+    configuration={"prefix": "$"}  # Override with dict
+)
+```
+
+## Accessing Configuration
+
+Access configuration anywhere in your code:
+
+```python
+from discore import config
+
+print(config.prefix)  # "!"
+print(config.version)  # "1.0.0"
+print(config.log.level)  # "INFO"
+
+# Add custom configuration
+print(config.database.host)  # Access custom fields
+print(config.api_keys.openai)  # Nested custom config
+```
+
+The config object is an `addict.Dict`, so you can access keys as attributes or dictionary keys:
+
+```python
+config.prefix == config["prefix"]  # True
+config.log.level == config["log"]["level"]  # True
+```
+
+## Custom Configuration Fields
+
+Add your own fields to `config.yml`:
+
+```yaml config.yml
+# Standard Discore config
+prefix: "!"
+token: ${BOT_TOKEN}
+
+# Your custom fields
+database:
+  host: "localhost"
+  port: 5432
+  name: "mybot_db"
+
+api_keys:
+  openai: ${OPENAI_API_KEY}
+  weather: ${WEATHER_API_KEY}
+
+features:
+  music: true
+  leveling: true
+  economy: false
+```
+
+Access them in your code:
+
+```python
+from discore import config
+
+if config.features.music:
+    # Load music cog
+    pass
+
+db_connection = connect(
+    host=config.database.host,
+    port=config.database.port,
+    database=config.database.name
+)
+```
+
+## Example: Complete Configuration
+
+Here's a production-ready configuration example:
+
+```yaml config.yml
+# Bot Identity
+prefix: "!"
+token: ${DISCORD_BOT_TOKEN}
+description: "A powerful Discord bot"
+version: "2.1.0"
+color: 0x5865F2
+
+# Features
+hot_reload: false  # Disabled in production
+auto_sync: false   # Sync manually to avoid rate limits
+case_insensitive: true
+locale: "en-US"
+
+# Help Command
+help:
+  cog: "utility"
+  name: "help"
+  brief: "Shows help information"
+  description: "Get help on commands and features"
+  aliases: ["h", "?"]
+
+# Logging
+log:
+  channel: ${ERROR_LOG_CHANNEL}
+  file: "logs/bot.log"
+  alert_user: true
+  commands: false
+  stream: true
+  level: "INFO"
+  root: false
+  stream_to_err: true
+  format: "[{asctime}] {levelformat} {name}: {message}"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  level_format:
+    debug: "[{bg_black}{bold}DEBUG{no_bold}{bg_normal}]   "
+    info: "[{blue}{bold}INFO{no_bold}{normal}]    "
+    warning: "[{yellow}{bold}WARNING{no_bold}{normal}] "
+    error: "[{red}ERROR{normal}]   "
+    critical: "[{bg_red}CRITICAL{bg_normal}]"
+
+# Custom Configuration
+database:
+  url: ${DATABASE_URL}
+  pool_size: 10
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+
+features:
+  moderation: true
+  music: true
+  leveling: true
+  custom_commands: true
+
+override_config: override.config.yml
+```
+
+## Related
+
+- [Logging](/core/logging) - Configure logging behavior in detail
+- [Localization](/core/localization) - Set up multi-language support
+- [Bot](/core/bot) - Understand how configuration is loaded

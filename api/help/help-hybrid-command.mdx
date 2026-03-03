@@ -1,0 +1,321 @@
+---
+title: HelpHybridCommand
+description: Base class for help commands with hybrid command support (text + slash commands)
+---
+
+`HelpHybridCommand` is the base class for creating help commands that work with both text commands and slash commands. It extends `discord.ext.commands.HelpCommand` with hybrid command functionality.
+
+## Class Signature
+
+```python
+class HelpHybridCommand(commands.HelpCommand)
+```
+
+## Constructor
+
+```python
+def __init__(self, *, with_app_command: bool = False, include_apps: bool = True, **options: Any)
+```
+
+Initializes the hybrid help command with app command support.
+
+<ParamField path="with_app_command" type="bool" default="False">
+  Whether to include the help command in the app command tree (enable slash command support). This is a shortcut to `command_attrs=dict(with_app_command=True)`.
+</ParamField>
+
+<ParamField path="include_apps" type="bool" default="True">
+  Whether to include app commands when displaying help. Only applicable when the help command is invoked via slash command. Set to `False` to show only text commands.
+</ParamField>
+
+<ParamField path="**options" type="Any">
+  Additional keyword arguments passed to `discord.ext.commands.HelpCommand`. Common options:
+  - `command_attrs` (dict): Custom attributes for the help command
+  - `verify_checks` (bool): Whether to verify command checks before showing commands
+  - `show_hidden` (bool): Whether to show hidden commands
+</ParamField>
+
+## Main Method
+
+### command_callback()
+
+```python
+async def command_callback(self, ctx: commands.Context, /, *, command: Optional[str] = None) -> None
+```
+
+The actual implementation of the help hybrid command. This is the entry point called when users invoke the help command.
+
+<ParamField path="ctx" type="commands.Context">
+  The invocation context
+</ParamField>
+
+<ParamField path="command" type="Optional[str]" default="None">
+  The command, cog, or group to get help for. If `None`, shows help for all commands.
+</ParamField>
+
+**Dispatches to:**
+- `send_bot_help()` - When no command is specified
+- `send_cog_help()` - When a cog name is specified
+- `send_command_help()` - When a single command is specified
+- `send_group_help()` - When a command group is specified
+- `send_error_message()` - When an error occurs
+
+<Warning>
+  It is not recommended to override this method. Instead, override the specific `send_*` methods to customize behavior.
+</Warning>
+
+## Helper Methods
+
+### prepare_help_command()
+
+```python
+async def prepare_help_command(self, ctx: commands.Context, command: Optional[str] = None, /) -> None
+```
+
+Prepares the help command before execution. Sets the appropriate command prefix based on invocation type.
+
+<ParamField path="ctx" type="commands.Context">
+  The invocation context
+</ParamField>
+
+<ParamField path="command" type="Optional[str]" default="None">
+  The command name being queried
+</ParamField>
+
+**Behavior:**
+- Sets `_command_prefix` to `/` for slash commands
+- Sets `_command_prefix` to the bot's prefix for text commands
+
+### get_cog()
+
+```python
+def get_cog(self, command: CommandTextApp, /) -> Optional[commands.Cog]
+```
+
+Retrieves the cog associated with a command.
+
+<ParamField path="command" type="Union[commands.Command, app_commands.Command, app_commands.Group]">
+  The command to get the cog from
+</ParamField>
+
+**Returns:** The associated cog instance, or `None` if the command has no associated cog
+
+**Note:** Works with both text commands and app commands by checking the `binding` attribute for app commands.
+
+### get_prefix()
+
+```python
+def get_prefix(self, command: CommandTextApp, /) -> str
+```
+
+Retrieves the appropriate prefix for a command.
+
+<ParamField path="command" type="Union[commands.Command, app_commands.Command, app_commands.Group]">
+  The command to get the prefix for
+</ParamField>
+
+**Returns:** `/` for app commands, or the bot's prefix for text commands
+
+### filter_commands()
+
+```python
+async def filter_commands(
+    self,
+    commands: Iterable[CommandTextApp],
+    /,
+    *,
+    sort: bool = False,
+    key: Optional[Callable[[CommandTextApp], Any]] = None
+) -> List[Union[Command, app_commands.Command]]
+```
+
+Filters and optionally sorts commands based on checks and visibility.
+
+<ParamField path="commands" type="Iterable[Union[commands.Command, app_commands.Command, app_commands.Group]]">
+  Commands to filter
+</ParamField>
+
+<ParamField path="sort" type="bool" default="False">
+  Whether to sort the results
+</ParamField>
+
+<ParamField path="key" type="Optional[Callable]" default="None">
+  Optional key function for sorting. Defaults to sorting by command name if `sort=True`.
+</ParamField>
+
+**Returns:** List of commands that passed the filter
+
+**Features:**
+- Respects `verify_checks` and `show_hidden` attributes
+- Supports both text commands and app commands
+- Verifies command permissions if `verify_checks=True`
+- Filters hidden commands if `show_hidden=False`
+
+<Warning>
+  `verify_checks` cannot be reliably performed for app commands without slash invocation. App commands with checks are filtered out when invoked via text command.
+</Warning>
+
+### get_command_signature()
+
+```python
+def get_command_signature(self, command: CommandTextApp, /) -> str
+```
+
+Generates a command signature string compatible with both text and app commands.
+
+<ParamField path="command" type="Union[commands.Command, app_commands.Command, app_commands.Group]">
+  The command to get the signature for
+</ParamField>
+
+**Returns:** A formatted command signature string (e.g., `!ping`, `/help command`, `!user ban <user> [reason]`)
+
+**Features:**
+- Shows command aliases for text commands
+- Includes parent command hierarchy for subcommands
+- Generates app command parameter signatures
+- Handles required and optional parameters correctly
+
+### get_command_description()
+
+```python
+def get_command_description(self, command: CommandTextApp, /, *, brief: bool = False) -> Optional[str]
+```
+
+Retrieves the description/help text for a command.
+
+<ParamField path="command" type="Union[commands.Command, app_commands.Command, app_commands.Group]">
+  The command to get the description for
+</ParamField>
+
+<ParamField path="brief" type="bool" default="False">
+  Whether to get the short documentation (brief) or full help text
+</ParamField>
+
+**Returns:** The command's description/help text, or `None` if not available
+
+**Behavior:**
+- For app commands: Returns the `description` attribute
+- For text commands (brief=True): Returns `short_doc`
+- For text commands (brief=False): Returns `help`
+
+### get_bot_app_mapping()
+
+```python
+def get_bot_app_mapping(self) -> Dict[Optional[commands.Cog], List[Union[app_commands.Command, app_commands.Group]]]
+```
+
+Retrieves a mapping of cogs to their app commands.
+
+**Returns:** Dictionary mapping cogs to their associated app commands. Commands without a cog are mapped to `None`.
+
+**Features:**
+- Handles both regular cogs and `GroupCog` instances
+- Includes guild-specific app commands
+- Includes global app commands
+
+## Internal Implementation
+
+### _HelpHybridCommandImpl
+
+The `_HelpHybridCommandImpl` class is an internal implementation detail that bridges `HelpCommand` with `HybridCommand`. It handles:
+
+```python
+class _HelpHybridCommandImpl(commands.HybridCommand)
+```
+
+**Key responsibilities:**
+- Injecting the help command instance into the command tree
+- Managing help command lifecycle (preparation, error handling)
+- Properly handling cog injection and ejection
+- Bridging app command and text command invocations
+
+<Note>
+  You should not instantiate or interact with `_HelpHybridCommandImpl` directly. It is automatically created and managed by `HelpHybridCommand`.
+</Note>
+
+## Hybrid Command Support
+
+The hybrid command system allows the help command to work seamlessly with both invocation methods:
+
+**Text Command Invocation:**
+```bash
+!help          # Shows all commands
+!help ping     # Shows help for ping command
+!help Admin    # Shows help for Admin cog
+```
+
+**Slash Command Invocation:**
+```bash
+/help          # Shows all commands (including app commands)
+/help command:ping   # Shows help for ping command
+/help command:Admin  # Shows help for Admin cog
+```
+
+**Key differences:**
+- Slash commands automatically include app commands in the listing
+- Slash commands use `/` prefix in signatures
+- Text commands use the bot's configured prefix
+
+## Usage Example
+
+```python
+import discord
+from discord.ext import commands
+from discore import HelpHybridCommand
+
+class MyHelpCommand(HelpHybridCommand):
+    async def send_bot_help(self, mapping):
+        ctx = self.context
+        embed = discord.Embed(title="Help Menu")
+        
+        # Get all commands
+        all_commands = []
+        for cog, cmds in mapping.items():
+            all_commands.extend(cmds)
+        
+        # Filter commands
+        filtered = await self.filter_commands(all_commands, sort=True)
+        
+        # Build help text
+        for command in filtered:
+            signature = self.get_command_signature(command)
+            description = self.get_command_description(command, brief=True)
+            embed.add_field(
+                name=signature,
+                value=description or "No description",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+    
+    async def send_command_help(self, command):
+        ctx = self.context
+        embed = discord.Embed(
+            title=self.get_command_signature(command),
+            description=self.get_command_description(command)
+        )
+        await ctx.send(embed=embed)
+
+# Enable both text and slash command support
+bot = commands.Bot(
+    command_prefix="!",
+    help_command=MyHelpCommand(with_app_command=True),
+    intents=discord.Intents.default()
+)
+```
+
+## Methods to Override
+
+When subclassing `HelpHybridCommand`, override these methods to customize behavior:
+
+- `send_bot_help(mapping)` - Customize the main help display
+- `send_cog_help(cog)` - Customize cog/category help display
+- `send_command_help(command)` - Customize individual command help
+- `send_group_help(group)` - Customize command group help
+- `command_not_found(string)` - Customize command not found error
+- `subcommand_not_found(command, string)` - Customize subcommand not found error
+- `send_error_message(error)` - Customize error message display
+
+## See Also
+
+- [EmbedHelpCommand](/api/help/embed-help-command) - Ready-to-use embed-based help command
+- [discord.py HelpCommand](https://discordpy.readthedocs.io/en/stable/ext/commands/api.html#discord.ext.commands.HelpCommand) - Base help command documentation

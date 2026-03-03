@@ -1,0 +1,254 @@
+---
+title: EmbedHelpCommand
+description: Embed-based help command with hybrid command support for Discord bots
+---
+
+`EmbedHelpCommand` is a ready-to-use help command implementation that displays help information using Discord embeds. It extends `HelpHybridCommand` to support both text commands and slash commands.
+
+## Class Signature
+
+```python
+class EmbedHelpCommand(HelpHybridCommand)
+```
+
+## Constructor
+
+```python
+def __init__(self, **kwargs)
+```
+
+Initializes the embed-based help command with hybrid command support enabled by default.
+
+<ParamField path="**kwargs" type="Any">
+  Additional keyword arguments passed to `HelpHybridCommand`. Common options include:
+  - `command_attrs` (dict): Attributes for the help command
+  - `verify_checks` (bool): Whether to verify command checks when filtering
+  - `show_hidden` (bool): Whether to show hidden commands
+</ParamField>
+
+<Note>
+  `with_app_command` is automatically set to `True`, enabling slash command support.
+</Note>
+
+## Help Display Methods
+
+These methods are called automatically based on the help request type.
+
+### send_bot_help()
+
+```python
+async def send_bot_help(self, mapping) -> None
+```
+
+Sends the main help message showing all available commands grouped by category.
+
+<ParamField path="mapping" type="Dict[Optional[Cog], List[Command]]">
+  Mapping of cogs to their commands (automatically provided by discord.py)
+</ParamField>
+
+**Behavior:**
+- Groups commands by their cog category
+- Shows bot description if available
+- Displays commands in inline fields by category
+- Commands without a cog appear under "No Category"
+
+### send_cog_help()
+
+```python
+async def send_cog_help(self, cog) -> None
+```
+
+Sends help information for a specific cog/module.
+
+<ParamField path="cog" type="commands.Cog">
+  The cog to display help for
+</ParamField>
+
+**Displays:**
+- Cog name as the title
+- Cog description
+- List of available commands in that cog
+
+### send_command_help()
+
+```python
+async def send_command_help(self, command: commands.Command) -> None
+```
+
+Sends help information for a specific command.
+
+<ParamField path="command" type="commands.Command">
+  The command to display help for
+</ParamField>
+
+**Displays:**
+- Command name as the title
+- Command description (if available)
+- Command signature in a code block
+- Detailed help text (if available)
+
+### send_group_help()
+
+```python
+async def send_group_help(self, group: commands.Group) -> None
+```
+
+Sends help information for a command group.
+
+<ParamField path="group" type="commands.Group">
+  The command group to display help for
+</ParamField>
+
+**Displays:**
+- Group name as the title
+- Group description
+- List of subcommands in the group
+
+## Error Handling Methods
+
+### command_not_found()
+
+```python
+async def command_not_found(self, command_name: str) -> str
+```
+
+Returns an error message when a command is not found.
+
+<ParamField path="command_name" type="str">
+  The name of the unknown command
+</ParamField>
+
+**Returns:** Localized error message indicating the command was not found
+
+### subcommand_not_found()
+
+```python
+async def subcommand_not_found(self, command, subcommand_name: str) -> str
+```
+
+Returns an error message when a subcommand is not found.
+
+<ParamField path="command" type="Union[commands.Command, commands.Group]">
+  The parent command
+</ParamField>
+
+<ParamField path="subcommand_name" type="str">
+  The name of the unknown subcommand
+</ParamField>
+
+**Returns:** Localized error message indicating the subcommand was not found or that the command has no subcommands
+
+### send_error_message()
+
+```python
+async def send_error_message(self, error: commands.CommandError) -> None
+```
+
+Sends an error message as an embed.
+
+<ParamField path="error" type="commands.CommandError">
+  The error message to display
+</ParamField>
+
+## Configuration
+
+The help command appearance can be customized through your `config.yml` file:
+
+```yaml
+help:
+  title: "Bot Help"
+  description: "Here are all available commands"
+  no_category: "Uncategorized"
+  command:
+    title: "Command: {command}"
+    not_found: "Command `{command}` not found."
+  cog:
+    title: "Category: {cog}"
+    commands: "Commands"
+  group:
+    title: "Subcommands for {group}"
+  subcommand:
+    not_found: "Command `{command}` has no subcommand `{subcommand}`."
+    no_subcommand: "Command `{command}` has no subcommands."
+  no_commands: "No commands available."
+```
+
+## Usage Example
+
+```python
+import discord
+from discord.ext import commands
+from discore import EmbedHelpCommand
+
+# Create bot with embed help command
+bot = commands.Bot(
+    command_prefix="!",
+    help_command=EmbedHelpCommand(),
+    intents=discord.Intents.default()
+)
+
+@bot.command()
+async def ping(ctx):
+    """Check if the bot is responsive"""
+    await ctx.send("Pong!")
+
+bot.run("TOKEN")
+```
+
+**Help command usage:**
+- `!help` - Shows all commands grouped by category
+- `!help ping` - Shows help for the ping command
+- `!help MyCog` - Shows all commands in the MyCog category
+- `/help` - Slash command version (if enabled)
+
+## Customization Example
+
+```python
+from discore import EmbedHelpCommand
+import discord
+
+class CustomHelpCommand(EmbedHelpCommand):
+    async def send_bot_help(self, mapping):
+        # Add custom behavior
+        ctx = self.context
+        bot = ctx.bot
+        
+        # Get filtered commands
+        filtered = await self.filter_commands(bot.commands, sort=True)
+        
+        # Create custom embed
+        embed = discord.Embed(
+            title="🤖 Custom Help Menu",
+            description="Here are my commands!",
+            color=discord.Color.blue()
+        )
+        
+        for command in filtered:
+            embed.add_field(
+                name=command.name,
+                value=command.short_doc or "No description",
+                inline=True
+            )
+        
+        await ctx.send(embed=embed)
+
+# Use custom help command
+bot = commands.Bot(
+    command_prefix="!",
+    help_command=CustomHelpCommand()
+)
+```
+
+## Features
+
+- **Hybrid Support**: Works with both text commands (`!help`) and slash commands (`/help`)
+- **Automatic Categorization**: Groups commands by their cog/category
+- **Internationalization**: Uses i18n for localized help messages
+- **Command Filtering**: Respects command checks and hidden status
+- **Clean Embeds**: Professional-looking help messages with bot footer
+- **Error Handling**: Graceful error messages for invalid commands
+
+## See Also
+
+- [HelpHybridCommand](/api/help/help-hybrid-command) - Base class for hybrid help commands
+- [Configuration](/core/configuration) - Help system configuration options

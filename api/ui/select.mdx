@@ -1,0 +1,563 @@
+---
+title: 'Select'
+description: 'Dropdown select menu components for views'
+---
+
+## Overview
+
+Select menus allow users to choose from a dropdown list of options. Discore re-exports discord.py's select menu classes, which include various specialized types for different selection needs.
+
+## Select Menu Types
+
+Discore provides five types of select menus:
+
+- **Select** - Custom options defined by you
+- **UserSelect** - Select Discord users
+- **RoleSelect** - Select server roles
+- **ChannelSelect** - Select server channels
+- **MentionableSelect** - Select users or roles
+
+## Select (String Select)
+
+### Class Definition
+
+```python
+from discore.ui import Select
+from discord import SelectOption
+
+class Select(discord.ui.Select):
+    """A select menu with custom string options."""
+```
+
+### Constructor
+
+```python
+Select(
+    *,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    options: list[SelectOption] = ...,
+    disabled: bool = False,
+    row: int | None = None
+)
+```
+
+<ParamField path="custom_id" type="str | None" default="None">
+  A unique identifier for the select menu (max 100 characters). Required for persistent views.
+</ParamField>
+
+<ParamField path="placeholder" type="str | None" default="None">
+  The text shown when nothing is selected (max 150 characters).
+</ParamField>
+
+<ParamField path="min_values" type="int" default="1">
+  Minimum number of options that must be selected (0-25).
+</ParamField>
+
+<ParamField path="max_values" type="int" default="1">
+  Maximum number of options that can be selected (1-25).
+</ParamField>
+
+<ParamField path="options" type="list[SelectOption]" required>
+  List of options to display in the select menu (1-25 options).
+</ParamField>
+
+<ParamField path="disabled" type="bool" default="False">
+  Whether the select menu is disabled.
+</ParamField>
+
+<ParamField path="row" type="int | None" default="None">
+  The row to place the select menu in (0-4). Select menus take up an entire row.
+</ParamField>
+
+### SelectOption
+
+```python
+SelectOption(
+    label: str,
+    value: str = ...,
+    description: str | None = None,
+    emoji: str | Emoji | PartialEmoji | None = None,
+    default: bool = False
+)
+```
+
+<ParamField path="label" type="str" required>
+  The display text for the option (max 100 characters).
+</ParamField>
+
+<ParamField path="value" type="str" default="label">
+  The value of the option. Defaults to the label if not provided (max 100 characters).
+</ParamField>
+
+<ParamField path="description" type="str | None" default="None">
+  Additional description text shown below the label (max 100 characters).
+</ParamField>
+
+<ParamField path="emoji" type="str | Emoji | PartialEmoji | None" default="None">
+  An emoji to display next to the option.
+</ParamField>
+
+<ParamField path="default" type="bool" default="False">
+  Whether this option is selected by default.
+</ParamField>
+
+## UserSelect
+
+### Class Definition
+
+```python
+from discore.ui import UserSelect
+
+class UserSelect(discord.ui.UserSelect):
+    """A select menu for choosing Discord users."""
+```
+
+### Constructor
+
+```python
+UserSelect(
+    *,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    disabled: bool = False,
+    row: int | None = None
+)
+```
+
+Parameters are the same as Select, except `options` is not needed (users are populated automatically).
+
+## RoleSelect
+
+### Class Definition
+
+```python
+from discore.ui import RoleSelect
+
+class RoleSelect(discord.ui.RoleSelect):
+    """A select menu for choosing server roles."""
+```
+
+### Constructor
+
+```python
+RoleSelect(
+    *,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    disabled: bool = False,
+    row: int | None = None
+)
+```
+
+## ChannelSelect
+
+### Class Definition
+
+```python
+from discore.ui import ChannelSelect
+from discord import ChannelType
+
+class ChannelSelect(discord.ui.ChannelSelect):
+    """A select menu for choosing server channels."""
+```
+
+### Constructor
+
+```python
+ChannelSelect(
+    *,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    disabled: bool = False,
+    channel_types: list[ChannelType] = ...,
+    row: int | None = None
+)
+```
+
+<ParamField path="channel_types" type="list[ChannelType]" default="[]">
+  List of channel types to filter by (e.g., `[ChannelType.text, ChannelType.voice]`).
+</ParamField>
+
+## MentionableSelect
+
+### Class Definition
+
+```python
+from discore.ui import MentionableSelect
+
+class MentionableSelect(discord.ui.MentionableSelect):
+    """A select menu for choosing users or roles."""
+```
+
+### Constructor
+
+```python
+MentionableSelect(
+    *,
+    custom_id: str | None = None,
+    placeholder: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    disabled: bool = False,
+    row: int | None = None
+)
+```
+
+## Decorator
+
+### @discord.ui.select
+
+```python
+@discord.ui.select(
+    *,
+    placeholder: str | None = None,
+    custom_id: str | None = None,
+    min_values: int = 1,
+    max_values: int = 1,
+    options: list[SelectOption] = ...,
+    disabled: bool = False,
+    row: int | None = None
+)
+```
+
+Decorator for creating select menu callbacks in a View subclass.
+
+## Properties
+
+### values
+
+```python
+values: list[str] | list[User] | list[Role] | list[Channel] | list[User | Role]
+```
+
+The selected values. Type depends on the select menu type:
+- **Select**: List of option values (strings)
+- **UserSelect**: List of User objects
+- **RoleSelect**: List of Role objects
+- **ChannelSelect**: List of Channel objects
+- **MentionableSelect**: List of User or Role objects
+
+### placeholder
+
+```python
+placeholder: str | None
+```
+
+The placeholder text.
+
+### min_values
+
+```python
+min_values: int
+```
+
+Minimum number of selections required.
+
+### max_values
+
+```python
+max_values: int
+```
+
+Maximum number of selections allowed.
+
+### disabled
+
+```python
+disabled: bool
+```
+
+Whether the select menu is disabled.
+
+### options (Select only)
+
+```python
+options: list[SelectOption]
+```
+
+The list of options (only available on String Select).
+
+## Methods
+
+### callback
+
+```python
+async def callback(interaction: Interaction) -> None
+```
+
+The callback function called when an option is selected.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object containing the selected values
+</ParamField>
+
+## Usage Examples
+
+### Basic String Select
+
+```python
+from discore.ui import View, Select
+from discord import Interaction, SelectOption
+
+class MyView(View):
+    @discord.ui.select(
+        placeholder="Choose a color...",
+        options=[
+            SelectOption(label="Red", emoji="🔴", value="red"),
+            SelectOption(label="Green", emoji="🟢", value="green"),
+            SelectOption(label="Blue", emoji="🔵", value="blue"),
+        ]
+    )
+    async def select_callback(self, interaction: Interaction, select: Select):
+        await interaction.response.send_message(
+            f"You selected: {select.values[0]}",
+            ephemeral=True
+        )
+
+await ctx.send("Pick a color:", view=MyView())
+```
+
+### Multi-Select
+
+```python
+class MultiSelectView(View):
+    @discord.ui.select(
+        placeholder="Choose your favorite languages (up to 3)...",
+        min_values=1,
+        max_values=3,
+        options=[
+            SelectOption(label="Python", value="python"),
+            SelectOption(label="JavaScript", value="javascript"),
+            SelectOption(label="TypeScript", value="typescript"),
+            SelectOption(label="Java", value="java"),
+            SelectOption(label="C++", value="cpp"),
+        ]
+    )
+    async def language_select(self, interaction: Interaction, select: Select):
+        languages = ", ".join(select.values)
+        await interaction.response.send_message(
+            f"You selected: {languages}",
+            ephemeral=True
+        )
+
+await ctx.send("Select languages:", view=MultiSelectView())
+```
+
+### Select with Descriptions
+
+```python
+class DescriptionView(View):
+    @discord.ui.select(
+        placeholder="Choose a plan...",
+        options=[
+            SelectOption(
+                label="Free",
+                value="free",
+                description="Basic features, no cost",
+                emoji="🆓"
+            ),
+            SelectOption(
+                label="Pro",
+                value="pro",
+                description="Advanced features, $9.99/month",
+                emoji="⭐"
+            ),
+            SelectOption(
+                label="Enterprise",
+                value="enterprise",
+                description="Custom solutions, contact sales",
+                emoji="🏢"
+            ),
+        ]
+    )
+    async def plan_select(self, interaction: Interaction, select: Select):
+        await interaction.response.send_message(
+            f"Selected plan: {select.values[0]}",
+            ephemeral=True
+        )
+
+await ctx.send("Choose your plan:", view=DescriptionView())
+```
+
+### UserSelect Example
+
+```python
+from discore.ui import UserSelect
+
+class UserSelectView(View):
+    @discord.ui.select(cls=UserSelect, placeholder="Select a user...")
+    async def user_select(self, interaction: Interaction, select: UserSelect):
+        user = select.values[0]
+        await interaction.response.send_message(
+            f"You selected: {user.mention} ({user.name})",
+            ephemeral=True
+        )
+
+await ctx.send("Pick a user:", view=UserSelectView())
+```
+
+### RoleSelect Example
+
+```python
+from discore.ui import RoleSelect
+
+class RoleSelectView(View):
+    @discord.ui.select(cls=RoleSelect, placeholder="Select roles...", max_values=3)
+    async def role_select(self, interaction: Interaction, select: RoleSelect):
+        roles = ", ".join([role.name for role in select.values])
+        await interaction.response.send_message(
+            f"You selected: {roles}",
+            ephemeral=True
+        )
+
+await ctx.send("Pick roles:", view=RoleSelectView())
+```
+
+### ChannelSelect Example
+
+```python
+from discore.ui import ChannelSelect
+from discord import ChannelType
+
+class ChannelSelectView(View):
+    @discord.ui.select(
+        cls=ChannelSelect,
+        placeholder="Select a text channel...",
+        channel_types=[ChannelType.text]
+    )
+    async def channel_select(self, interaction: Interaction, select: ChannelSelect):
+        channel = select.values[0]
+        await interaction.response.send_message(
+            f"You selected: {channel.mention}",
+            ephemeral=True
+        )
+
+await ctx.send("Pick a channel:", view=ChannelSelectView())
+```
+
+### MentionableSelect Example
+
+```python
+from discore.ui import MentionableSelect
+
+class MentionableSelectView(View):
+    @discord.ui.select(
+        cls=MentionableSelect,
+        placeholder="Select users or roles...",
+        max_values=5
+    )
+    async def mentionable_select(self, interaction: Interaction, select: MentionableSelect):
+        mentions = ", ".join([item.mention for item in select.values])
+        await interaction.response.send_message(
+            f"You selected: {mentions}",
+            ephemeral=True
+        )
+
+await ctx.send("Pick users or roles:", view=MentionableSelectView())
+```
+
+### Dynamic Options
+
+```python
+class DynamicSelectView(View):
+    def __init__(self, options: list[str]):
+        super().__init__()
+        
+        # Create select with dynamic options
+        select_options = [SelectOption(label=opt, value=opt) for opt in options]
+        
+        select = Select(
+            placeholder="Choose an option...",
+            options=select_options,
+            custom_id="dynamic_select"
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+    
+    async def select_callback(self, interaction: Interaction):
+        select = interaction.data['custom_id']
+        await interaction.response.send_message(
+            f"Selected: {interaction.data['values'][0]}",
+            ephemeral=True
+        )
+
+# Use with custom options
+options = ["Option 1", "Option 2", "Option 3"]
+await ctx.send("Dynamic select:", view=DynamicSelectView(options))
+```
+
+### Updating Select Options
+
+```python
+class UpdateSelectView(View):
+    def __init__(self):
+        super().__init__()
+        self.selected_category = None
+    
+    @discord.ui.select(
+        placeholder="Choose a category...",
+        options=[
+            SelectOption(label="Fruits", value="fruits"),
+            SelectOption(label="Vegetables", value="vegetables"),
+        ],
+        row=0
+    )
+    async def category_select(self, interaction: Interaction, select: Select):
+        self.selected_category = select.values[0]
+        
+        # Update second select based on category
+        if self.selected_category == "fruits":
+            options = [
+                SelectOption(label="Apple", value="apple"),
+                SelectOption(label="Banana", value="banana"),
+                SelectOption(label="Orange", value="orange"),
+            ]
+        else:
+            options = [
+                SelectOption(label="Carrot", value="carrot"),
+                SelectOption(label="Broccoli", value="broccoli"),
+                SelectOption(label="Spinach", value="spinach"),
+            ]
+        
+        # Update the item select options
+        self.children[1].options = options
+        await interaction.response.edit_message(view=self)
+    
+    @discord.ui.select(
+        placeholder="Choose an item...",
+        options=[SelectOption(label="Select category first", value="none")],
+        row=1
+    )
+    async def item_select(self, interaction: Interaction, select: Select):
+        await interaction.response.send_message(
+            f"You selected: {select.values[0]}",
+            ephemeral=True
+        )
+
+await ctx.send("Cascading selects:", view=UpdateSelectView())
+```
+
+## Limitations
+
+- Maximum 25 options per String Select
+- Each select menu takes up an entire row (max 5 select menus per view)
+- Option labels, values, and descriptions each have 100 character limits
+- Placeholder text has a 150 character limit
+- min_values must be between 0 and 25
+- max_values must be between 1 and 25
+- max_values must be >= min_values
+
+## Related
+
+- [View](/api/ui/view) - Container for select menus
+- [Button](/api/ui/button) - Button component alternative
+- [Modal](/api/ui/modal) - Modal dialog for text input

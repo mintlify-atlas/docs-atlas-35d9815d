@@ -1,0 +1,416 @@
+---
+title: Bot
+description: Complete API reference for the Discore Bot class
+---
+
+# Bot
+
+The main Bot class that represents your Discord bot. Inherits from `discord.ext.commands.AutoShardedBot` and provides automatic error handling, logging, cog loading, and configuration management.
+
+## Class Signature
+
+```python
+class Bot(commands.AutoShardedBot)
+```
+
+## Constructor
+
+```python
+Bot(command_prefix: str = None, **kwargs)
+```
+
+Initialize the bot with automatic configuration, logging, and internationalization setup.
+
+<ParamField path="command_prefix" type="str" optional>
+  The command prefix for text commands. If not provided, uses the prefix from the configuration file.
+</ParamField>
+
+<ParamField path="configuration_file" type="str" optional>
+  Path to the TOML/YAML configuration file. Defaults to `config.toml` or `config.yml`.
+</ParamField>
+
+<ParamField path="description" type="str" optional>
+  Bot description. If not provided, uses the description from the configuration file.
+</ParamField>
+
+<ParamField path="intents" type="discord.Intents" optional>
+  Discord intents to use. Defaults to `discord.Intents.all()`.
+</ParamField>
+
+<ParamField path="help_command" type="commands.HelpCommand" optional>
+  Custom help command. Defaults to `EmbedHelpCommand` with configuration from config file.
+</ParamField>
+
+<ParamField path="tree_cls" type="Type[discord.app_commands.CommandTree]" optional>
+  Custom command tree class. Defaults to `CommandTree`.
+</ParamField>
+
+### Example
+
+```python
+import discore
+
+# Basic initialization
+bot = discore.Bot()
+
+# Custom prefix and configuration
+bot = discore.Bot(
+    command_prefix="!",
+    configuration_file="custom_config.yml"
+)
+
+# Custom intents
+import discord
+bot = discore.Bot(
+    intents=discord.Intents(
+        guilds=True,
+        messages=True,
+        message_content=True
+    )
+)
+```
+
+## Methods
+
+### run
+
+```python
+run(token: str = None, **kwargs) -> None
+```
+
+Runs the bot. This is a blocking call that handles the entire bot lifecycle.
+
+<ParamField path="token" type="str" optional>
+  The bot token. If not provided, uses the token from the configuration file.
+</ParamField>
+
+<ResponseField name="raises" type="NoSpecifiedTokenError">
+  Raised when no token is specified in either the configuration file or as a parameter.
+</ResponseField>
+
+#### Example
+
+```python
+import discore
+
+bot = discore.Bot()
+
+# Token from config file
+bot.run()
+
+# Explicit token
+bot.run("YOUR_BOT_TOKEN_HERE")
+```
+
+### start
+
+```python
+async start(token: str, *, reconnect: bool = True) -> None
+```
+
+Asynchronously starts the bot. Loads cogs, performs login, syncs slash commands (if `auto_sync` is enabled), and connects to Discord.
+
+<ParamField path="token" type="str" required>
+  The bot token for authentication.
+</ParamField>
+
+<ParamField path="reconnect" type="bool" default="True">
+  Whether the bot should automatically reconnect on disconnect.
+</ParamField>
+
+#### Example
+
+```python
+import discore
+import asyncio
+
+bot = discore.Bot()
+
+async def main():
+    await bot.start("YOUR_BOT_TOKEN_HERE")
+
+asyncio.run(main())
+```
+
+### _load_cogs
+
+```python
+async _load_cogs() -> None
+```
+
+Automatically loads all cogs from the `cogs/` directory. This method is called internally by `start()`.
+
+**Convention:**
+- Cog files must end with `.py`
+- The cog class name must be the PascalCase version of the filename
+- Example: `my_cog.py` should contain a class named `MyCog`
+
+<ResponseField name="raises" type="ModuleNotFoundError">
+  Raised when a cog specified in the help command configuration is not found.
+</ResponseField>
+
+### invoke
+
+```python
+async invoke(ctx: commands.Context, /) -> None
+```
+
+Invokes the command in the given context. This method handles locale setting and dispatches command events.
+
+<ParamField path="ctx" type="commands.Context" required>
+  The invocation context containing the command to execute.
+</ParamField>
+
+### get_context
+
+```python
+async get_context(
+    origin: Union[discord.Message, discord.Interaction],
+    /,
+    *,
+    cls: Type[commands.Context] = discord.utils.MISSING
+) -> commands.Context
+```
+
+Returns the invocation context from a message or interaction. Supports case-insensitive command parsing when enabled in configuration.
+
+<ParamField path="origin" type="Union[discord.Message, discord.Interaction]" required>
+  The message or interaction to get the context from.
+</ParamField>
+
+<ParamField path="cls" type="Type[commands.Context]" optional>
+  Custom context class. Defaults to `commands.Context`.
+</ParamField>
+
+<ResponseField name="returns" type="commands.Context">
+  The invocation context. Check `Context.valid` to ensure it's a valid command invocation.
+</ResponseField>
+
+### handle_error
+
+```python
+async handle_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Automatically handles command errors and sends appropriate error messages to users based on error type.
+
+<ParamField path="ctx" type="commands.Context" required>
+  The context where the error occurred.
+</ParamField>
+
+<ParamField path="error" type="Exception" required>
+  The exception that was raised.
+</ParamField>
+
+**Handled error types:**
+- `CommandNotFound` - Silently ignored
+- `ConversionError`, `BadArgument` - Shows usage help
+- `MissingRequiredArgument` - Shows missing argument message
+- `BotMissingPermissions` - Notifies about missing bot permissions
+- `NotOwner`, `MissingPermissions` - Notifies about missing user permissions
+- `CommandOnCooldown` - Shows cooldown time remaining
+- `PrivateMessageOnly`, `NoPrivateMessage` - Context restriction errors
+- And more...
+
+### log_command_request
+
+```python
+async log_command_request(ctx: commands.Context) -> None
+```
+
+<Note>
+Deprecated since version 0.4
+</Note>
+
+Logs when a text command is invoked (if `log.commands` is enabled in config).
+
+<ParamField path="ctx" type="commands.Context" required>
+  The command context.
+</ParamField>
+
+### log_command_completion
+
+```python
+async log_command_completion(ctx: commands.Context) -> None
+```
+
+<Note>
+Deprecated since version 0.4
+</Note>
+
+Logs when a text command completes successfully (if `log.commands` is enabled in config).
+
+<ParamField path="ctx" type="commands.Context" required>
+  The command context.
+</ParamField>
+
+### log_app_command_request
+
+```python
+async log_app_command_request(
+    i: discord.Interaction,
+    command: discord.app_commands.Command
+) -> None
+```
+
+<Note>
+Deprecated since version 0.4
+</Note>
+
+Logs when a slash command is invoked (if `log.commands` is enabled in config).
+
+<ParamField path="i" type="discord.Interaction" required>
+  The interaction that triggered the command.
+</ParamField>
+
+<ParamField path="command" type="discord.app_commands.Command" required>
+  The app command that was invoked.
+</ParamField>
+
+### log_app_command_completion
+
+```python
+async log_app_command_completion(
+    i: discord.Interaction,
+    command: discord.app_commands.Command
+) -> None
+```
+
+<Note>
+Deprecated since version 0.4
+</Note>
+
+Logs when a slash command completes successfully (if `log.commands` is enabled in config).
+
+<ParamField path="i" type="discord.Interaction" required>
+  The interaction that triggered the command.
+</ParamField>
+
+<ParamField path="command" type="discord.app_commands.Command" required>
+  The app command that completed.
+</ParamField>
+
+### get
+
+```python
+@classmethod
+get() -> Bot
+```
+
+Returns the currently running bot instance. This is a class method that can be called from anywhere in your code.
+
+<ResponseField name="returns" type="Bot">
+  The bot instance that was started with `run()` or `start()`.
+</ResponseField>
+
+#### Example
+
+```python
+import discore
+
+# From anywhere in your code
+bot = discore.Bot.get()
+print(f"Bot user: {bot.user}")
+```
+
+## Event Handlers
+
+The Bot class provides default implementations for common Discord events:
+
+### on_connect
+
+```python
+async on_connect() -> None
+```
+
+Called when the bot successfully connects to Discord. Logs the connection with bot name and ID.
+
+### on_ready
+
+```python
+async on_ready() -> None
+```
+
+Called when the bot is fully ready to receive events. Logs the startup time and command prefix.
+
+### on_disconnect
+
+```python
+async on_disconnect() -> None
+```
+
+Called when the bot disconnects from Discord. Logs a warning message.
+
+### on_resumed
+
+```python
+async on_resumed() -> None
+```
+
+Called when the bot successfully resumes a session. Logs an info message.
+
+### on_command_error
+
+```python
+async on_command_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Called when a command raises an error. Delegates to `handle_error()` unless a custom error handler is defined.
+
+### on_error
+
+```python
+async on_error(event: str, *args, **kwargs) -> None
+```
+
+Called when an event handler raises an error. Logs the error with event details.
+
+## Properties
+
+### start_time
+
+```python
+start_time: datetime.datetime
+```
+
+The timestamp when the bot became ready. Set during `on_ready()`.
+
+### initialisation_time
+
+```python
+initialisation_time: datetime.datetime
+```
+
+The timestamp when the bot instance was created.
+
+## Complete Usage Example
+
+```python
+import discore
+from discord.ext import commands
+
+# Initialize the bot
+bot = discore.Bot()
+
+# Add a simple command
+@bot.command(name="hello")
+async def hello(ctx):
+    await ctx.send(f"Hello {ctx.author.mention}!")
+
+# Override an event handler
+@bot.event
+async def on_ready():
+    # Call parent implementation
+    await super(type(bot), bot).on_ready()
+    # Custom logic
+    print(f"Logged in as {bot.user}")
+
+# Run the bot (token from config file)
+bot.run()
+```
+
+## See Also
+
+- [Cog](/api/cog) - Create modular command groups
+- [Configuration](/core/configuration) - Configure your bot
+- [Error Handling](/core/error-handling) - Customize error responses

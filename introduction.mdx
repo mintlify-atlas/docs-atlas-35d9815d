@@ -1,0 +1,115 @@
+---
+title: Introduction
+description: Discore is a Python framework for easily initializing and running discord.py bots with automatic error handling, logging, and i18n support
+---
+
+## What is Discore?
+
+Discore is a core framework for discord.py bots that embraces a "Convention over configuration" philosophy. It dramatically simplifies bot development by providing automatic error handling, built-in logging, and i18n support out of the box.
+
+With Discore, you can initialize and run a production-ready Discord bot in just two lines of code, while maintaining full backward compatibility with discord.py.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="One-line bot initialization and execution" icon="rocket">
+    Get your bot running instantly with minimal boilerplate code
+  </Card>
+  
+  <Card title="Automatic error handling and user responses" icon="shield-check">
+    Built-in error handlers that send helpful messages to users automatically
+  </Card>
+  
+  <Card title="Built-in logging to console, file, and Discord channels" icon="file-lines">
+    Comprehensive logging system with customizable output destinations
+  </Card>
+  
+  <Card title="i18n support with automatic locale detection" icon="globe">
+    Multi-language support with automatic user locale detection
+  </Card>
+  
+  <Card title="Enhanced help command with hybrid command support" icon="circle-question">
+    Beautiful embed-based help command that works with both prefix and slash commands
+  </Card>
+  
+  <Card title="Hot-reload support for cogs and locales" icon="arrows-rotate">
+    Reload your bot's cogs and localization files without restarting
+  </Card>
+  
+  <Card title="Convention over configuration philosophy" icon="wand-magic-sparkles">
+    Sensible defaults that work out of the box with minimal configuration
+  </Card>
+  
+  <Card title="Full backward compatibility with discord.py" icon="code">
+    Use all discord.py features alongside Discore's enhancements
+  </Card>
+</CardGroup>
+
+## Why Discore?
+
+Building a Discord bot with vanilla discord.py requires a lot of repetitive setup: error handlers, logging configuration, help commands, and more. Discore handles all of this for you while staying true to discord.py's API.
+
+### Vanilla discord.py
+
+```python
+import discord
+from discord.ext import commands
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('discord')
+
+# Create bot with intents
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Define error handlers
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('Missing required argument!')
+    elif isinstance(error, commands.CommandNotFound):
+        return
+    # ... handle many more error types
+
+# Load cogs manually
+for cog_file in os.listdir('./cogs'):
+    if cog_file.endswith('.py'):
+        bot.load_extension(f'cogs.{cog_file[:-3]}')
+
+# Run the bot
+bot.run('YOUR_TOKEN_HERE')
+```
+
+### With Discore
+
+```python
+import discore
+
+bot = discore.Bot()
+
+bot.run()
+```
+
+That's it! Discore automatically:
+- Loads all cogs from the `cogs/` folder
+- Sets up comprehensive error handling
+- Configures logging to console, file, and Discord channels
+- Initializes i18n support with locale files
+- Provides an enhanced help command
+- Reads configuration from `config.yml`
+
+All while remaining 100% compatible with discord.py, so you can still use all your favorite discord.py features.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Discore and its dependencies
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first bot in minutes
+  </Card>
+</CardGroup>

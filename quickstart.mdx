@@ -1,80 +1,269 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Build your first Discord bot with Discore in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through creating a simple Discord bot using Discore. By the end, you'll have a working bot with commands, automatic error handling, and logging.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- Python 3.6 or higher installed
+- Discore installed (see [Installation](/installation))
+- A Discord bot token from the [Discord Developer Portal](https://discord.com/developers/applications)
 
-### Step 2: Deploy your changes
+## Project Structure
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Discore uses a convention-based project structure. Here's what your bot project should look like:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+```
+project/
+├─ main.py              # Your main bot file (name can be anything)
+├─ config.yml           # Configuration file
+├─ cogs/                # Folder for command cogs (must be named 'cogs')
+│  ├─ cog1.py
+│  └─ cog2.py
+└─ locales/             # Folder for locale files (must be named 'locales')
+   ├─ en-US.yml
+   └─ fr.yml
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The `cogs` and `locales` folder names are required. Cog files should contain a class named with the file name in PascalCase (e.g., `cog1.py` contains class `Cog1`).
 </Note>
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Create Your Project Directory">
+    Create a new directory for your bot and navigate into it:
+    
+    ```bash
+    mkdir my-discord-bot
+    cd my-discord-bot
+    ```
+  </Step>
+  
+  <Step title="Create the Configuration File">
+    Create a `config.yml` file with your bot's configuration. At minimum, you need to provide a bot token:
+    
+    ```yaml config.yml
+    prefix: "!"
+    token: "YOUR_BOT_TOKEN_HERE"
+    description: "A basic test bot"
+    version: "1.0"
+    color: 0x35901E
+    hot_reload: true
+    auto_sync: true
+    case_insensitive: true
+    locale: "en-US"
+    
+    help:
+      cog: "system"
+      name: "help"
+      help: "Shows this message"
+      description: "Shows help about the bot, a command, or a category"
+      usage: "[command | category]"
+      brief: "Shows help about the bot"
+      aliases: ["h", "hp"]
+      cooldown: null
+      enabled: true
+      hidden: false
+    
+    log:
+      channel: 1111111111111
+      file: "log.txt"
+      alert_user: true
+      commands: false
+      stream: true
+      level: "INFO"
+      root: true
+      stream_to_err: true
+      format: "[{asctime}] {levelformat} {name}: {message}"
+      date_format: "%Y-%m-%d %H:%M:%S"
+      level_format:
+        debug: "[{bg_black}{bold}DEBUG{no_bold}{bg_normal}]   "
+        info: "[{blue}{bold}INFO{no_bold}{normal}]    "
+        warning: "[{yellow}{bold}WARNING{no_bold}{normal}] "
+        error: "[{red}ERROR{normal}]   "
+        critical: "[{bg_red}CRITICAL{bg_normal}]"
+    ```
+    
+    <Warning>
+      Replace `YOUR_BOT_TOKEN_HERE` with your actual Discord bot token. Never commit your token to version control!
+    </Warning>
+    
+    ### Configuration Options
+    
+    Most configuration values are optional. Here are the key ones:
+    
+    - `prefix` - Command prefix for your bot (default: `!`)
+    - `token` - Your Discord bot token (**required**)
+    - `description` - Bot description shown in help
+    - `version` - Bot version number
+    - `color` - Default embed color (hex value)
+    - `hot_reload` - Auto-reload cogs when files change
+    - `auto_sync` - Automatically sync slash commands on startup
+    - `case_insensitive` - Make commands case-insensitive
+    - `locale` - Default language for the bot
+  </Step>
+  
+  <Step title="Create the Main Bot File">
+    Create a `main.py` file with the following code:
+    
+    ```python main.py
+    import discore
+    
+    bot = discore.Bot()
+    
+    # Your usual commands here, or in a cog
+    
+    bot.run()
+    ```
+    
+    That's it! Just two lines of code and your bot is ready to run.
+    
+    <Info>
+      If your config file has a different name, pass it as an argument: `discore.Bot("my-config.yml")`
+    </Info>
+  </Step>
+  
+  <Step title="Create a Cog with Commands">
+    Create a `cogs` directory and add your first cog:
+    
+    ```bash
+    mkdir cogs
+    ```
+    
+    Create `cogs/cog1.py` with some example commands:
+    
+    ```python cogs/cog1.py
+    import discore
+    
+    
+    class Cog1(discore.Cog, name="cog1", description="the cog containing some commands"):
+        @discore.command(
+            name="say",
+            brief="Say something",
+            description="Sends a message containing the string passed as an argument, and deletes the original message.",
+            help="- `message` : The string to send"
+        )
+        async def say(self, ctx, *, message: str):
+            await ctx.message.delete()
+            await ctx.send(message)
+    
+        @discore.command(
+            name="ping",
+            brief="check if the bot is online",
+            description="Responds with a simple message, useful to see if the bot is online"
+        )
+        async def ping(self, ctx):
+            await ctx.message.reply("Pong!")
+    ```
+    
+    <Note>
+      Cogs are automatically loaded from the `cogs/` folder. The class name must match the filename in PascalCase.
+    </Note>
+  </Step>
+  
+  <Step title="(Optional) Create Locale Files">
+    For multi-language support, create a `locales` directory and add language files:
+    
+    ```bash
+    mkdir locales
+    ```
+    
+    Create `locales/en-US.yml`:
+    
+    ```yaml locales/en-US.yml
+    help:
+      no_commands: "*No commands*"
+      bot:
+        title: "Help menu"
+        description: "Use `%{help_command} [command]` for more info on a command.\nYou can also use `%{help_command} [category]` for more info on a category."
+        no_category: "No category"
+      cog:
+        title: "%{cog} commands"
+        commands: "Commands"
+      command:
+        title: "%{command} command"
+        not_found: "No command called `%{command}` found."
+    
+    command_error:
+      bad_argument: "One or more arguments are incorrect.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+      missing_argument: "One or more arguments are missing.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+      not_found: "Sorry, I couldn't find anything that matched what you indicated."
+      on_cooldown: "This command is on cooldown. Try again %{cooldown_time}."
+      bot_missing_permission: "I do not have the necessary permissions to perform this action (role not high enough or permission not granted)"
+      user_missing_permission: "You do not have the necessary permissions to perform this action (role not high enough or permission not granted)"
+    
+    exception: "An exceptional error has occurred. The bug has been automatically reported, please be patient. Detail of the error :```\nFile '%{file}', line '%{line}', function '%{function}'\n%{error}: %{error_message}\n```"
+    ```
+    
+    <Info>
+      Discore includes default English localizations. You only need to create locale files if you want to customize messages or add additional languages.
+    </Info>
+  </Step>
+  
+  <Step title="Run Your Bot">
+    Start your bot by running the main file:
+    
+    ```bash
+    python main.py
+    ```
+    
+    You should see output like:
+    
+    ```
+    [2026-03-03 10:30:15] [INFO]    discore.bot: Bot initialising... discore v0.11, discord.py v2.6.4
+    [2026-03-03 10:30:16] [INFO]    discore.bot: Cogs successfully loaded: 'Cog1'
+    [2026-03-03 10:30:17] [INFO]    discore.bot: Connected to Discord as 'MyBot' (id : 123456789)
+    [2026-03-03 10:30:17] [INFO]    discore.bot: Bot launched in 1.523s, ready to use (prefix '!')
+    ```
+    
+    Your bot is now online and ready to respond to commands!
+  </Step>
+</Steps>
+
+## Testing Your Bot
+
+Invite your bot to a Discord server and try these commands:
+
+- `!help` - Shows the help menu
+- `!ping` - Bot responds with "Pong!"
+- `!say Hello World` - Bot repeats your message
+
+Discore automatically handles errors, so if you use a command incorrectly, the bot will send a helpful error message to the user.
+
+## What's Happening Behind the Scenes?
+
+When you run your bot, Discore automatically:
+
+1. **Loads Configuration** - Reads `config.yml` and merges with defaults
+2. **Initializes Logging** - Sets up console, file, and Discord channel logging
+3. **Loads Localization** - Reads locale files from `locales/` folder
+4. **Loads Cogs** - Automatically discovers and loads all cogs from `cogs/` folder
+5. **Sets Up Error Handlers** - Configures comprehensive error handling
+6. **Syncs Commands** - Syncs slash commands if `auto_sync` is enabled
+7. **Connects to Discord** - Logs in and starts the bot
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Learn About Cogs" icon="puzzle-piece" href="/core/cogs">
+    Organize your commands into modular cogs
+  </Card>
+  
+  <Card title="Configuration Reference" icon="gear" href="/core/configuration">
+    Explore all configuration options
+  </Card>
+  
+  <Card title="Error Handling" icon="shield-check" href="/core/error-handling">
+    Understand how Discore handles errors
+  </Card>
+  
+  <Card title="Localization" icon="globe" href="/core/localization">
+    Add multi-language support to your bot
+  </Card>
+</CardGroup>

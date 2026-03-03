@@ -1,0 +1,536 @@
+---
+title: Helper Utilities
+description: Collection of utility functions for string formatting, message handling, command usage, and embed management
+---
+
+## sformat
+
+Sparse format a string, allowing partial formatting with missing placeholders.
+
+```python
+def sformat(s: str, *args, **kwargs) -> str
+```
+
+<ParamField path="s" type="str" required>
+  The format string to process.
+</ParamField>
+
+<ParamField path="args" type="*Any">
+  Positional arguments for formatting.
+</ParamField>
+
+<ParamField path="kwargs" type="**Any">
+  Keyword arguments for formatting.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The formatted string with available placeholders filled and missing ones preserved.
+</ResponseField>
+
+### Sparse Formatting Behavior
+
+Unlike standard `str.format()`, `sformat()` preserves placeholders that don't have corresponding values:
+
+```python
+from discore.utils import sformat
+
+# Missing positional argument - placeholder preserved
+sformat('The {} is {}', 'answer')
+# Returns: 'The answer is {}'
+
+# Missing keyword argument - placeholder preserved  
+sformat('The answer to {question!r} is {answer:0.2f}', answer=42)
+# Returns: 'The answer to {question!r} is 42.00'
+
+# Nested format specs
+sformat('The {} to {} is {:0.{p}f}', 'answer', 'everything', p=4)
+# Returns: 'The answer to everything is {:0.4f}'
+```
+
+This is useful for template strings that are formatted in multiple passes.
+
+## fallback_reply
+
+Attempt to reply to a message, falling back to sending a normal message if reply fails.
+
+```python
+async def fallback_reply(
+    destination: Union[discord.Interaction, discord.Message, discord.abc.Messageable],
+    *args, **kwargs
+) -> discord.Message
+```
+
+<ParamField path="destination" type="discord.Interaction | discord.Message | commands.Context | discord.abc.Messageable" required>
+  The destination to send the message to. Can be:
+  - `commands.Context`: Replies to the context message
+  - `discord.Message`: Replies to the message
+  - `discord.Interaction`: Responds to the interaction or sends to channel
+  - `discord.abc.Messageable`: Sends a normal message
+</ParamField>
+
+<ParamField path="args" type="*Any">
+  Positional arguments passed to the send/reply method.
+</ParamField>
+
+<ParamField path="kwargs" type="**Any">
+  Keyword arguments passed to the send/reply method. `mention_author` defaults to `False`.
+</ParamField>
+
+<ResponseField name="return" type="discord.Message">
+  The sent message object.
+</ResponseField>
+
+### Behavior by Destination Type
+
+- **Context/Message**: Tries `reply()`, falls back to `channel.send()` on error
+- **Interaction**: Uses `response.send_message()` if not responded, otherwise `channel.send()`
+- **Messageable**: Sends directly with `send()`
+
+```python
+from discore.utils import fallback_reply
+
+@bot.command()
+async def test(ctx):
+    # Safely reply, falls back if reply permission missing
+    await fallback_reply(ctx, "Hello!")
+
+@bot.tree.command()
+async def test_slash(interaction: discord.Interaction):
+    # Handles interaction response properly
+    await fallback_reply(interaction, "Hello!", ephemeral=True)
+```
+
+## get_command_usage
+
+Generate a usage string for a prefix command showing syntax with aliases and parameters.
+
+```python
+def get_command_usage(prefix: str, command: commands.Command) -> str
+```
+
+<ParamField path="prefix" type="str" required>
+  The bot's command prefix.
+</ParamField>
+
+<ParamField path="command" type="commands.Command" required>
+  The command to generate usage for.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  Formatted command usage string (e.g., `!help [command]` or `![ban|b] <user> [reason]`).
+</ResponseField>
+
+### Usage Format
+
+- Shows parent commands if part of a group
+- Displays aliases in brackets with pipe separator: `[name|alias1|alias2]`
+- Includes command signature with parameters
+
+```python
+from discore.utils import get_command_usage
+
+@bot.command(aliases=['b'])
+async def ban(ctx, user: discord.User, *, reason: str = None):
+    usage = get_command_usage('!', ctx.command)
+    # Returns: "![ban|b] <user> [reason]"
+    
+@bot.group()
+async def config(ctx):
+    pass
+
+@config.command()
+async def set(ctx, key: str, value: str):
+    usage = get_command_usage('!', ctx.command)
+    # Returns: "!config set <key> <value>"
+```
+
+## get_app_command_usage
+
+Generate a usage string for an application (slash) command.
+
+```python
+def get_app_command_usage(command: Union[app_commands.Command, app_commands.ContextMenu]) -> str
+```
+
+<ParamField path="command" type="app_commands.Command | app_commands.ContextMenu" required>
+  The application command to generate usage for.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  Formatted command usage string (e.g., `/ban user reason`).
+</ResponseField>
+
+### Usage Format
+
+- Starts with `/` prefix
+- Shows qualified name (includes parent groups)
+- Lists all parameter display names
+
+```python
+from discore.utils import get_app_command_usage
+
+@bot.tree.command()
+async def ban(interaction: discord.Interaction, user: discord.User, reason: str = None):
+    usage = get_app_command_usage(interaction.command)
+    # Returns: "/ban user reason"
+```
+
+## sanitize
+
+Sanitize text for safe display in Discord, preventing code block breakage and limiting length.
+
+```python
+def sanitize(text: str, limit: int = 4000, crop_at_end: bool = True, replace_newline: bool = True) -> str
+```
+
+<ParamField path="text" type="str" required>
+  The text to sanitize.
+</ParamField>
+
+<ParamField path="limit" type="int" default="4000">
+  Maximum length of output. Text exceeding this is cropped with `...`.
+</ParamField>
+
+<ParamField path="crop_at_end" type="bool" default="True">
+  If `True`, crops at the end. If `False`, crops at the beginning.
+</ParamField>
+
+<ParamField path="replace_newline" type="bool" default="True">
+  If `True`, replaces newlines with `\\n` literal string.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  Sanitized text safe for Discord display.
+</ResponseField>
+
+### Sanitization Steps
+
+1. Replaces triple backticks (\`\`\`) with triple quotes (''')
+2. Optionally replaces newlines with `\\n`
+3. Crops text if it exceeds limit, adding `...`
+
+```python
+from discore.utils import sanitize
+
+# Prevent code block breakage
+sanitize("User input: ```malicious```")
+# Returns: "User input: '''malicious'''"
+
+# Limit length
+sanitize("A" * 5000, limit=100)
+# Returns: "AAA..." (97 A's + "...")
+
+# Crop at beginning
+sanitize("Error in function_name: message", limit=20, crop_at_end=False)
+# Returns: "...tion_name: message"
+```
+
+## log_command_error
+
+Log a command error to the console and optionally to a Discord error channel.
+
+```python
+async def log_command_error(
+    ctx_i: Union[commands.Context, discord.Interaction],
+    err: Exception,
+    logger: logging.Logger = logging.getLogger(__name__)
+) -> None
+```
+
+<ParamField path="ctx_i" type="commands.Context | discord.Interaction" required>
+  The context or interaction where the error occurred.
+</ParamField>
+
+<ParamField path="err" type="Exception" required>
+  The exception that was raised.
+</ParamField>
+
+<ParamField path="logger" type="logging.Logger" default="logging.getLogger(__name__)">
+  The logger instance to use for console logging.
+</ParamField>
+
+### Logged Information
+
+Automatically extracts and logs:
+- Server name and ID
+- Command name
+- User name and ID
+- Original message content (for prefix commands)
+- Message jump URL (for prefix commands)
+- Error file, line, and function
+- Full traceback
+
+### User Notification
+
+If `config.log.alert_user` is `True`, sends a translated error message to the user with:
+- File name where error occurred
+- Line number
+- Function name
+- Error type and message
+
+```python
+from discore.utils import log_command_error
+import logging
+
+logger = logging.getLogger(__name__)
+
+@bot.command()
+async def test(ctx):
+    try:
+        # Command logic
+        risky_operation()
+    except Exception as e:
+        await log_command_error(ctx, e, logger)
+```
+
+## log_data
+
+Log contextual data to console and optionally to a Discord log channel with an embed.
+
+```python
+async def log_data(
+    bot: discord.Client,
+    message: str,
+    data: dict,
+    logger: logging.Logger = logging.getLogger(__name__),
+    level: int = logging.ERROR,
+    exc_info: Union[bool, tuple] = True
+) -> None
+```
+
+<ParamField path="bot" type="discord.Client" required>
+  The bot instance for accessing the log channel.
+</ParamField>
+
+<ParamField path="message" type="str" required>
+  The main log message.
+</ParamField>
+
+<ParamField path="data" type="dict" required>
+  Dictionary of contextual information to log (displayed as key-value pairs).
+</ParamField>
+
+<ParamField path="logger" type="logging.Logger" default="logging.getLogger(__name__)">
+  The logger instance to use.
+</ParamField>
+
+<ParamField path="level" type="int" default="logging.ERROR">
+  The logging level (e.g., `logging.DEBUG`, `logging.INFO`, `logging.ERROR`).
+</ParamField>
+
+<ParamField path="exc_info" type="bool | tuple" default="True">
+  Exception information. `True` uses `sys.exc_info()`, or pass a tuple `(type, value, traceback)`.
+</ParamField>
+
+### Console Output
+
+Logs to console with structured format:
+```
+message
+    Key1: 'value1'
+    Key2: value2
+```
+
+### Discord Channel Output
+
+If `config.log.channel` is set:
+- Sends formatted traceback in code block
+- Creates embed with message as title
+- Adds data fields to embed
+- Sets bot footer with `set_embed_footer()`
+
+```python
+from discore.utils import log_data
+import logging
+
+# Log with exception
+try:
+    risky_function()
+except Exception:
+    await log_data(
+        bot,
+        "Database connection failed",
+        {
+            "Server": "primary-db",
+            "Retry Count": 3,
+            "User": "system"
+        },
+        level=logging.ERROR
+    )
+
+# Log without exception
+await log_data(
+    bot,
+    "User action logged",
+    {"User ID": 123456, "Action": "purchase"},
+    level=logging.INFO,
+    exc_info=False
+)
+```
+
+## set_embed_footer
+
+Set the footer of an embed with bot name, avatar, version, and optional timeout.
+
+```python
+def set_embed_footer(
+    bot: discord.Client,
+    embed: discord.Embed,
+    timeout: Optional[float] = None,
+    sup: Iterable[str] = (),
+    set_color: bool = True
+) -> None
+```
+
+<ParamField path="bot" type="discord.Client" required>
+  The bot instance to get name and avatar from.
+</ParamField>
+
+<ParamField path="embed" type="discord.Embed" required>
+  The embed to set the footer on.
+</ParamField>
+
+<ParamField path="timeout" type="float | None" default="None">
+  Optional timeout in seconds. If set, adds deletion time to footer.
+</ParamField>
+
+<ParamField path="sup" type="Iterable[str]" default="()">
+  Additional strings to include in footer (separated by ` | `).
+</ParamField>
+
+<ParamField path="set_color" type="bool" default="True">
+  If `True` and embed has no color, sets it to `config.color`.
+</ParamField>
+
+### Footer Format
+
+Footer text combines (separated by ` | `):
+1. Bot name
+2. Version (from `config.version`) if configured
+3. Additional strings from `sup`
+4. Timeout message if `timeout` is set
+
+Footer icon is set to the bot's display avatar.
+
+```python
+from discore.utils import set_embed_footer
+import discord
+
+embed = discord.Embed(title="Status", description="All systems operational")
+
+# Basic footer
+set_embed_footer(bot, embed)
+# Footer: "MyBot | v1.0.0"
+
+# With timeout
+set_embed_footer(bot, embed, timeout=30)
+# Footer: "MyBot | v1.0.0 | Deletes in 30s"
+
+# With additional info
+set_embed_footer(bot, embed, sup=["Page 1/5", "Requested by User"])
+# Footer: "MyBot | v1.0.0 | Page 1/5 | Requested by User"
+
+await ctx.send(embed=embed, delete_after=30)
+```
+
+## ignore_cd
+
+Reset a command's cooldown if it was just triggered (hasn't been used by another call).
+
+```python
+async def ignore_cd(ci: commands.Context | discord.Interaction) -> None
+```
+
+<ParamField path="ci" type="commands.Context | discord.Interaction" required>
+  The context or interaction of the command to reset cooldown for.
+</ParamField>
+
+### Cooldown Reset Logic
+
+Only resets the cooldown if `_window == _last`, meaning the cooldown was just triggered by this invocation and hasn't been used since.
+
+**For prefix commands (Context)**:
+- Checks command bucket or global cooldown
+- Resets if cooldown window just started
+
+**For slash commands (Interaction)**:
+- Finds cooldown decorators in command checks
+- Resets matching cooldowns
+
+```python
+from discore.utils import ignore_cd
+from discord.ext import commands
+
+@bot.command()
+@commands.cooldown(1, 60, commands.BucketType.user)
+async def daily(ctx):
+    # Check if user has already claimed today
+    if user_already_claimed(ctx.author.id):
+        await ignore_cd(ctx)  # Don't consume cooldown
+        await ctx.send("You already claimed today!")
+        return
+    
+    # Grant daily reward
+    grant_reward(ctx.author.id)
+    await ctx.send("Daily reward claimed!")
+```
+
+## snake_to_pascale
+
+Convert a snake_case string to PascalCase.
+
+```python
+def snake_to_pascale(s: str) -> str
+```
+
+<ParamField path="s" type="str" required>
+  The snake_case string to convert.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The PascalCase version of the string.
+</ResponseField>
+
+```python
+from discore.utils import snake_to_pascale
+
+snake_to_pascale("user_profile_settings")
+# Returns: "UserProfileSettings"
+
+snake_to_pascale("http_error")
+# Returns: "HttpError"
+
+snake_to_pascale("API_client")
+# Returns: "ApiClient"
+```
+
+## CaseInsensitiveStringView
+
+A modified `StringView` class that performs case-insensitive string matching.
+
+```python
+class CaseInsensitiveStringView(commands.bot.StringView):
+    def skip_string(self, string: str) -> bool
+```
+
+Inherits from `discord.ext.commands.bot.StringView` and overrides `skip_string()` to perform case-insensitive comparisons.
+
+### skip_string
+
+<ParamField path="string" type="str" required>
+  The string to match (case-insensitive).
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `True` if the string was matched and the index advanced, `False` otherwise.
+</ResponseField>
+
+Useful for custom command parsing where you want to match prefixes or keywords regardless of case.
+
+```python
+from discore.utils import CaseInsensitiveStringView
+
+view = CaseInsensitiveStringView("!HELP command")
+view.skip_string("!help")  # Returns True (case-insensitive match)
+# Index is now at "command"
+```

@@ -1,0 +1,121 @@
+---
+title: Installation
+description: Install Discore and set up your development environment
+---
+
+## Requirements
+
+<Note>
+  Python 3.6 or above is required to use Discore.
+</Note>
+
+Before installing Discore, make sure you have Python 3.6+ installed on your system. You can check your Python version by running:
+
+```bash
+python --version
+```
+
+## Install Discore
+
+Discore can be installed directly from the GitHub repository using pip:
+
+```bash
+pip install git+https://github.com/Kyrela/discore
+```
+
+This will install Discore along with all required dependencies.
+
+## Dependencies
+
+Discore automatically installs the following dependencies:
+
+<AccordionGroup>
+  <Accordion title="Core Dependencies">
+    - **discord.py** (v2.6.4) - The Discord API wrapper
+    - **yamlenv** (~0.7.1) - YAML configuration with environment variable support
+    - **addict** (~2.4.0) - Dictionary access syntax for configuration
+    - **mergedeep** (~1.3.4) - Deep merging of configuration files
+    - **python-dotenv** (~1.2.1) - Environment variable management
+    - **python-i18n[YAML]** (~0.3.9) - Internationalization support
+  </Accordion>
+</AccordionGroup>
+
+All of these will be installed automatically when you install Discore, so you don't need to install them separately.
+
+## Verify Installation
+
+To verify that Discore is installed correctly, create a test Python file and try importing it:
+
+```python test.py
+import discore
+
+print(f"Discore version: {discore.__version__}")
+print(f"Installation successful!")
+```
+
+Run the test file:
+
+```bash
+python test.py
+```
+
+You should see output similar to:
+
+```
+Discore version: 0.11
+Installation successful!
+```
+
+## Development Installation
+
+If you want to contribute to Discore or modify the source code, you can clone the repository and install it in editable mode:
+
+```bash
+git clone https://github.com/Kyrela/discore.git
+cd discore
+pip install -e .
+```
+
+This allows you to make changes to the source code and immediately see the effects without reinstalling.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission Denied Error">
+    If you encounter a permission error during installation, try installing with the `--user` flag:
+    
+    ```bash
+    pip install --user git+https://github.com/Kyrela/discore
+    ```
+  </Accordion>
+  
+  <Accordion title="Python Version Error">
+    If you get an error about Python version compatibility, make sure you're using Python 3.6 or higher:
+    
+    ```bash
+    python --version
+    ```
+    
+    If you have multiple Python versions installed, you may need to use `python3` or `pip3` explicitly:
+    
+    ```bash
+    pip3 install git+https://github.com/Kyrela/discore
+    ```
+  </Accordion>
+  
+  <Accordion title="Git Not Found">
+    If pip reports that git is not found, you need to install Git on your system:
+    
+    - **Windows**: Download from [git-scm.com](https://git-scm.com/)
+    - **macOS**: Install via Homebrew with `brew install git`
+    - **Linux**: Use your package manager, e.g., `sudo apt install git`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have Discore installed, you're ready to build your first bot!
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Learn how to create a basic Discord bot with Discore
+</Card>

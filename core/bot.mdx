@@ -1,0 +1,328 @@
+---
+title: Bot
+description: The main Bot class that powers your Discord bot with automatic error handling and configuration management
+---
+
+The `Bot` class is the core of Discore, extending discord.py's `AutoShardedBot` with advanced features like automatic cog loading, error handling, and configuration management.
+
+## Overview
+
+The Bot class inherits from `discord.ext.commands.AutoShardedBot` and provides:
+
+- Automatic configuration loading from YAML files
+- Built-in logging system with console and file output
+- Auto-loading of cogs from the `cogs/` directory
+- Comprehensive error handling for all command types
+- Localization support with automatic locale detection
+- Optional auto-sync for slash commands
+
+## Constructor
+
+```python
+import discore
+
+bot = discore.Bot(command_prefix="!", **kwargs)
+```
+
+<ParamField path="command_prefix" type="str" default="None">
+  The command prefix for text commands. If not provided, uses the prefix from `config.yml`.
+</ParamField>
+
+<ParamField path="configuration_file" type="str | list[str]">
+  Path to configuration file(s) to load. Can be a single path or list of paths. These are loaded after `config.yml` and `override.config.yml`.
+</ParamField>
+
+<ParamField path="configuration" type="dict">
+  Configuration dictionary to load. Applied after all file-based configurations.
+</ParamField>
+
+<ParamField path="env_file" type="str" default=".env">
+  Path to the `.env` file for environment variables. Set to `None` to disable.
+</ParamField>
+
+<ParamField path="description" type="str">
+  Bot description. Defaults to `config.description`.
+</ParamField>
+
+<ParamField path="intents" type="discord.Intents" default="discord.Intents.all()">
+  Discord intents for the bot. Defaults to all intents.
+</ParamField>
+
+<ParamField path="help_command" type="commands.HelpCommand">
+  Custom help command. Defaults to `EmbedHelpCommand` with configuration from `config.help`.
+</ParamField>
+
+<ParamField path="tree_cls" type="Type[discord.app_commands.CommandTree]">
+  Custom command tree class. Defaults to Discore's `CommandTree`.
+</ParamField>
+
+## Key Methods
+
+### run()
+
+```python
+def run(token: str = None, **kwargs) -> None
+```
+
+Runs the bot with the specified token. If no token is provided, uses `config.token`.
+
+```python
+import discore
+
+bot = discore.Bot()
+bot.run()  # Uses token from config.yml
+```
+
+<ParamField path="token" type="str">
+  Discord bot token. If not provided, uses `config.token`. Raises `NoSpecifiedTokenError` if no token is found.
+</ParamField>
+
+<Note>
+  The token can be stored in `config.yml`, passed to `run()`, or set via environment variables using the yamlenv syntax in your config file.
+</Note>
+
+### start()
+
+```python
+async def start(token: str, *, reconnect: bool = True) -> None
+```
+
+Starts the bot asynchronously. This method:
+1. Loads all cogs from the `cogs/` directory
+2. Logs in to Discord
+3. Syncs slash commands if `config.auto_sync` is enabled
+4. Connects to Discord gateway
+
+<ParamField path="token" type="str" required>
+  Discord bot token.
+</ParamField>
+
+<ParamField path="reconnect" type="bool" default="True">
+  Whether to automatically reconnect on disconnection.
+</ParamField>
+
+### _load_cogs()
+
+```python
+async def _load_cogs() -> None
+```
+
+Automatically loads all cogs from the `cogs/` directory. Called internally by `start()`.
+
+**File naming convention:**
+- File: `my_cog.py` → Class: `MyCog`
+- File: `user_commands.py` → Class: `UserCommands`
+
+See the [Cogs documentation](/core/cogs) for more details.
+
+### handle_error()
+
+```python
+async def handle_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Automatically handles command errors with user-friendly messages. This method:
+- Detects error type and sends appropriate localized message
+- Logs errors to console, file, and Discord channel (if configured)
+- Creates server invites for debugging critical errors
+- Resets cooldowns for non-cooldown errors
+
+**Handled error types:**
+
+<AccordionGroup>
+  <Accordion title="Argument Errors">
+    - `commands.ConversionError` - Invalid argument type
+    - `commands.BadArgument` - Argument doesn't meet requirements
+    - `commands.MissingRequiredArgument` - Required argument missing
+    - `commands.InvalidEndOfQuotedStringError` - Quote formatting issue
+    - `commands.ExpectedClosingQuoteError` - Missing closing quote
+  </Accordion>
+  
+  <Accordion title="Permission Errors">
+    - `commands.BotMissingPermissions` - Bot lacks permissions
+    - `discord.Forbidden` - Bot forbidden from action
+    - `commands.MissingPermissions` - User lacks permissions
+    - `commands.NotOwner` - User is not bot owner
+  </Accordion>
+  
+  <Accordion title="Context Errors">
+    - `commands.PrivateMessageOnly` - Command DM-only
+    - `commands.NoPrivateMessage` - Command guild-only
+    - `discord.NotFound` - Resource not found
+  </Accordion>
+  
+  <Accordion title="Cooldown & Other">
+    - `commands.CommandOnCooldown` - Command on cooldown
+    - `commands.CommandNotFound` - Unknown command (silently ignored)
+    - `discord.DiscordServerError` - Discord API issues
+    - `ServerDisconnectedError` - Connection lost
+  </Accordion>
+</AccordionGroup>
+
+<ParamField path="ctx" type="commands.Context" required>
+  The command context.
+</ParamField>
+
+<ParamField path="error" type="Exception" required>
+  The error that was raised.
+</ParamField>
+
+```python
+# Custom error handler
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("Custom permission error!")
+    else:
+        await bot.handle_error(ctx, error)  # Fallback to default handler
+```
+
+## Event Handlers
+
+Discore provides default implementations for common Discord events. You can override them:
+
+### on_connect()
+
+Called when the bot successfully connects to Discord.
+
+```python
+@bot.event
+async def on_connect():
+    print(f"Connected as {bot.user.name} (ID: {bot.user.id})")
+```
+
+Default behavior: Logs connection with bot name, ID, and version.
+
+### on_ready()
+
+Called when the bot is fully ready to receive events.
+
+```python
+@bot.event
+async def on_ready():
+    print(f"Bot ready! Launch time: {(bot.start_time - bot.initialisation_time).total_seconds():.3f}s")
+```
+
+Default behavior: Records `start_time` and logs total initialization duration.
+
+### on_disconnect()
+
+Called when the bot disconnects from Discord.
+
+```python
+@bot.event
+async def on_disconnect():
+    print("Bot disconnected")
+```
+
+Default behavior: Logs a warning about disconnection.
+
+### on_resumed()
+
+Called when the bot resumes a session after disconnection.
+
+Default behavior: Logs session resume.
+
+### on_error()
+
+Called when an error occurs in an event handler.
+
+```python
+async def on_error(event: str, *args, **kwargs) -> None
+```
+
+Default behavior:
+- Silently logs Discord server errors and connection issues
+- Logs critical errors to console, file, and Discord channel with full context
+
+### on_command_error()
+
+Called when a command raises an error.
+
+```python
+async def on_command_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Default behavior:
+- Skips if custom error handler exists on command or cog
+- Delegates to `handle_error()` for automatic error handling
+
+<Warning>
+  If you override `on_command_error`, the automatic error handling will be disabled. Call `await bot.handle_error(ctx, error)` manually if you want to preserve it.
+</Warning>
+
+## Properties
+
+<ResponseField name="start_time" type="datetime.datetime">
+  Timestamp when the bot became ready. Set during `on_ready()`.
+</ResponseField>
+
+<ResponseField name="initialisation_time" type="datetime.datetime">
+  Timestamp when the Bot instance was created.
+</ResponseField>
+
+## Class Methods
+
+### get()
+
+```python
+@classmethod
+def get(cls) -> Bot
+```
+
+Returns the currently running bot instance. Useful for accessing the bot from cogs or other modules.
+
+```python
+from discore import Bot
+
+class MyCog(Cog):
+    @property
+    def bot(self) -> Bot:
+        return Bot.get()
+```
+
+## Configuration Loading Order
+
+The Bot loads configuration from multiple sources in this order (later sources override earlier ones):
+
+1. `default_config.yml` (built-in Discore defaults)
+2. `config.yml` (if exists)
+3. `override.config.yml` (if exists)
+4. Files specified in `configuration_file` parameter
+5. Files specified in `DISCORE_CONFIG` environment variable (colon-separated)
+6. Dictionary passed to `configuration` parameter
+
+<Tip>
+  Use `override.config.yml` for local overrides (e.g., different tokens per environment) and add it to `.gitignore`.
+</Tip>
+
+## Example: Complete Bot Setup
+
+```python
+import discore
+import discord
+
+bot = discore.Bot(
+    command_prefix="!",
+    intents=discord.Intents.all(),
+    configuration_file="custom_config.yml"
+)
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+    print(f"Latency: {bot.latency * 1000:.2f}ms")
+
+@bot.command(name="hello")
+async def hello(ctx):
+    await ctx.send(f"Hello {ctx.author.mention}!")
+
+bot.run()  # Uses token from config
+```
+
+## Related
+
+- [Configuration](/core/configuration) - Learn about all available config options
+- [Cogs](/core/cogs) - Organize commands into cogs
+- [Error Handling](/core/error-handling) - Deep dive into error handling system
+- [Logging](/core/logging) - Configure logging behavior

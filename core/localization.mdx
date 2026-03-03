@@ -1,0 +1,400 @@
+---
+title: Localization
+description: Add multi-language support with automatic locale detection from Discord interactions
+---
+
+Discore provides built-in internationalization (i18n) support with automatic locale detection based on Discord user preferences, hot-reloading during development, and easy-to-manage YAML locale files.
+
+## Locale File Structure
+
+Create locale files in a `locales/` directory at the root of your project:
+
+```
+project/
+├── main.py
+├── config.yml
+└── locales/
+    ├── en-US.yml
+    ├── fr.yml
+    ├── es-ES.yml
+    └── ja.yml
+```
+
+Each file contains translations for a specific locale:
+
+```yaml locales/en-US.yml
+help:
+  no_commands: "*No commands*"
+  bot:
+    title: "Help menu"
+    description: "Use `%{help_command} [command]` for more info on a command."
+
+command_error:
+  bad_argument: "One or more arguments are incorrect.\nTry \n```\n%{command_usage}\n```"
+  missing_argument: "One or more arguments are missing.\nTry \n```\n%{command_usage}\n```"
+
+exception: "An exceptional error has occurred. The bug has been automatically reported, please be patient. Detail of the error :```\nFile '%{file}', line '%{line}', function '%{function}'\n%{error}: %{error_message}\n```"
+
+footer:
+  version: "ver. %{version}"
+  timeout: "deletion in %{delay}"
+```
+
+```yaml locales/fr.yml
+help:
+  no_commands: "*Aucune commande*"
+  bot:
+    title: "Menu d'aide"
+    description: "Utilisez `%{help_command} [commande]` pour plus d'informations sur une commande."
+
+command_error:
+  bad_argument: "Un ou plusieurs arguments sont incorrects.\nEssayez \n```\n%{command_usage}\n```"
+  missing_argument: "Un ou plusieurs arguments sont manquants.\nEssayez \n```\n%{command_usage}\n```"
+
+exception: "Une erreur exceptionnelle est survenue. Le bug a été automatiquement signalé, veuillez patienter. Détail de l'erreur :```\nFichier '%{file}', ligne '%{line}', fonction '%{function}'\n%{error}: %{error_message}\n```"
+
+footer:
+  version: "ver. %{version}"
+  timeout: "suppression dans %{delay}"
+```
+
+## Automatic Locale Detection
+
+Discore automatically detects the user's locale from Discord interactions:
+
+```python
+import discore
+from i18n import t
+
+@bot.command()
+async def greet(ctx):
+    # Locale is automatically set based on ctx.interaction.locale
+    greeting = t("greetings.hello")
+    await ctx.send(greeting)
+```
+
+For hybrid commands or slash commands, Discord provides the user's locale preference, and Discore automatically switches to it.
+
+## set_locale() Function
+
+```python
+def set_locale(value: Union[commands.Context, discord.Interaction, discord.Locale, str, any]) -> None
+```
+
+Manually set the current locale for translations.
+
+<ParamField path="value" type="Context | Interaction | Locale | str" required>
+  The locale to set. Can be:
+  - `commands.Context` - Extracts locale from interaction
+  - `discord.Interaction` - Uses interaction's locale
+  - `discord.Locale` - Uses the locale enum value
+  - `str` - Locale code (e.g., "en-US", "fr", "ja")
+  - Other - Falls back to default locale
+</ParamField>
+
+```python
+from discore import set_locale
+from i18n import t
+
+@bot.command()
+async def translate(ctx, locale: str):
+    # Temporarily switch locale
+    set_locale(locale)
+    message = t("command_error.bad_argument")
+    await ctx.send(message)
+    
+    # Reset to context's locale
+    set_locale(ctx)
+```
+
+<Note>
+  Discore automatically calls `set_locale(ctx)` before executing commands, so you usually don't need to call it manually.
+</Note>
+
+## Translation Keys
+
+Discore uses these built-in translation keys for automatic error handling and help commands:
+
+### Help Command Keys
+
+```yaml
+help:
+  no_commands: "*No commands*"
+  bot:
+    title: "Help menu"
+    description: "Use `%{help_command} [command]` for more info."
+    no_category: "No category"
+  cog:
+    title: "%{cog} commands"
+    commands: "Commands"
+  group:
+    title: "%{group} group"
+  command:
+    title: "%{command} command"
+    not_found: "No command called `%{command}` found."
+  subcommand:
+    not_found: "Command `%{command}` has no subcommand named `%{subcommand}`"
+    no_subcommand: "Command `%{command}` has no subcommands."
+```
+
+**Variables:**
+- `%{help_command}` - The help command invocation
+- `%{cog}` - Cog name
+- `%{group}` - Command group name
+- `%{command}` - Command name
+- `%{subcommand}` - Subcommand name
+
+### Text Command Error Keys
+
+```yaml
+command_error:
+  bad_argument: "One or more arguments are incorrect.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+  missing_argument: "One or more arguments are missing.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+  not_found: "Sorry, I couldn't find anything that matched what you indicated."
+  invite_message: "A bug has occurred. This invitation will allow, if needed, the developer to access the server, to understand why the bug occurred. This invitation is limited to one use, grants only the status of temporary member, and lasts maximum 1 day."
+  on_cooldown: "This command is on cooldown. Try again %{cooldown_time}."
+  invalid_quoted_string: "Sorry, but I couldn't correctly process the arguments. Maybe you forgot to close a quote or to put a space after a closing quote?"
+  bot_missing_permission: "I do not have the necessary permissions to perform this action (role not high enough or permission not granted)"
+  user_missing_permission: "You do not have the necessary permissions to perform this action (role not high enough or permission not granted)"
+  private_message_only: "This command can only be used in private messages."
+  no_private_message: "This command cannot be used in private messages."
+```
+
+**Variables:**
+- `%{command_usage}` - Command signature/usage
+- `%{help_command}` - Help command for this command
+- `%{cooldown_time}` - Discord timestamp for when cooldown expires
+
+### Slash Command Error Keys
+
+```yaml
+app_error:
+  transformer: "The argument `%{argument_value}` is incorrect.\nTry \n```\n%{command_usage}\n```\nFor more information on usage, send\n```\n%{help_command}\n```"
+  no_private_message: "This command cannot be used in private messages."
+  missing_role: "You need the role `%{role}` to use this command."
+  missing_any_role: "You need one of the following roles to use this command: `%{roles_list}`."
+  missing_permissions: "You need the following permissions to use this command: `%{permissions_list}`."
+  bot_missing_permissions: "I need the following permissions to use this command: `%{permissions_list}`."
+  on_cooldown: "This command is on cooldown. Try again %{cooldown_time}."
+  command_not_found: "Command not found, please refresh your discord client."
+```
+
+**Variables:**
+- `%{argument_value}` - The invalid argument value
+- `%{command_usage}` - Command signature/usage
+- `%{help_command}` - Help command invocation
+- `%{role}` - Required role name
+- `%{roles_list}` - Comma-separated list of roles
+- `%{permissions_list}` - Comma-separated list of permissions
+- `%{cooldown_time}` - Discord timestamp for when cooldown expires
+
+### Exception Error Key
+
+```yaml
+exception: "An exceptional error has occurred. The bug has been automatically reported, please be patient. Detail of the error :```\nFile '%{file}', line '%{line}', function '%{function}'\n%{error}: %{error_message}\n```"
+```
+
+**Variables:**
+- `%{file}` - Filename where error occurred
+- `%{line}` - Line number
+- `%{function}` - Function name
+- `%{error}` - Error type (e.g., ValueError)
+- `%{error_message}` - Error description
+
+### Footer Keys
+
+```yaml
+footer:
+  version: "ver. %{version}"
+  timeout: "deletion in %{delay}"
+  units:
+    seconds: "s"
+    minutes: "m"
+    hours: "h"
+    days: "d"
+```
+
+**Variables:**
+- `%{version}` - Bot version from config
+- `%{delay}` - Formatted timeout duration
+
+## Custom Translation Keys
+
+Add your own translation keys for your bot's commands:
+
+```yaml locales/en-US.yml
+# Your custom keys
+greetings:
+  hello: "Hello, %{name}!"
+  goodbye: "Goodbye, %{name}! See you later!"
+  welcome: "Welcome to %{server}!"
+
+leveling:
+  level_up: "Congratulations! You've reached level %{level}!"
+  rank: "You are rank #%{rank} with %{xp} XP."
+```
+
+```yaml locales/fr.yml
+greetings:
+  hello: "Bonjour, %{name} !"
+  goodbye: "Au revoir, %{name} ! À plus tard !"
+  welcome: "Bienvenue sur %{server} !"
+
+leveling:
+  level_up: "Félicitations ! Vous avez atteint le niveau %{level} !"
+  rank: "Vous êtes classé #%{rank} avec %{xp} XP."
+```
+
+Use them in your code:
+
+```python
+from i18n import t
+from discore import set_locale
+
+@bot.command()
+async def hello(ctx, *, name: str = None):
+    set_locale(ctx)  # Set locale from user preference
+    target = name or ctx.author.name
+    greeting = t("greetings.hello", name=target)
+    await ctx.send(greeting)
+```
+
+## Configuration
+
+Configure the localization system:
+
+```yaml config.yml
+locale: "en-US"      # Default locale
+hot_reload: true     # Reload locale files on change
+```
+
+```python main.py
+import discore
+
+bot = discore.Bot(
+    locale_dir="locales",  # Custom locale directory (default: "locales")
+    locale="en-US"         # Override default locale
+)
+```
+
+## Hot Reload Support
+
+When `config.hot_reload` is enabled, locale files are reloaded automatically when modified:
+
+```yaml config.yml
+hot_reload: true  # Enable in development, disable in production
+```
+
+This allows you to update translations without restarting the bot.
+
+<Warning>
+  Hot reload is intended for development only. Set `hot_reload: false` in production for better performance.
+</Warning>
+
+## Supported Locales
+
+Discore supports all Discord locales:
+
+- `en-US` - English (United States)
+- `en-GB` - English (Great Britain)
+- `bg` - Bulgarian
+- `zh-CN` - Chinese (China)
+- `zh-TW` - Chinese (Taiwan)
+- `hr` - Croatian
+- `cs` - Czech
+- `da` - Danish
+- `nl` - Dutch
+- `fi` - Finnish
+- `fr` - French
+- `de` - German
+- `el` - Greek
+- `hi` - Hindi
+- `hu` - Hungarian
+- `it` - Italian
+- `ja` - Japanese
+- `ko` - Korean
+- `lt` - Lithuanian
+- `no` - Norwegian
+- `pl` - Polish
+- `pt-BR` - Portuguese (Brazil)
+- `ro` - Romanian
+- `ru` - Russian
+- `es-ES` - Spanish (Spain)
+- `sv-SE` - Swedish
+- `th` - Thai
+- `tr` - Turkish
+- `uk` - Ukrainian
+- `vi` - Vietnamese
+
+## Fallback Behavior
+
+If a translation key is missing:
+
+1. Falls back to the default locale (configured in `config.locale`)
+2. If still missing, returns the key name
+
+```python
+# If "custom.missing" doesn't exist in any locale:
+t("custom.missing")  # Returns "custom.missing"
+```
+
+<Tip>
+  Always define all keys in your default locale (`en-US` or `config.locale`) as a fallback.
+</Tip>
+
+## Example: Multi-language Bot
+
+```python
+# main.py
+import discore
+from i18n import t
+
+bot = discore.Bot()
+
+@bot.hybrid_command()
+async def language(ctx, locale: str):
+    """Change your language preference"""
+    from discore import set_locale
+    
+    set_locale(locale)
+    message = t("settings.language_changed", locale=locale)
+    await ctx.send(message)
+
+@bot.command()
+async def stats(ctx):
+    """Show server statistics"""
+    # Locale automatically set from ctx.interaction.locale
+    title = t("stats.title", server=ctx.guild.name)
+    members = t("stats.members", count=ctx.guild.member_count)
+    channels = t("stats.channels", count=len(ctx.guild.channels))
+    
+    await ctx.send(f"**{title}**\n{members}\n{channels}")
+
+bot.run()
+```
+
+```yaml locales/en-US.yml
+settings:
+  language_changed: "Language changed to %{locale}"
+
+stats:
+  title: "%{server} Statistics"
+  members: "Members: %{count}"
+  channels: "Channels: %{count}"
+```
+
+```yaml locales/fr.yml
+settings:
+  language_changed: "Langue changée en %{locale}"
+
+stats:
+  title: "Statistiques de %{server}"
+  members: "Membres : %{count}"
+  channels: "Salons : %{count}"
+```
+
+## Related
+
+- [Error Handling](/core/error-handling) - Error messages use localization
+- [Configuration](/core/configuration) - Configure default locale
+- [Logging](/core/logging) - Error logs include localized user messages

@@ -1,0 +1,468 @@
+---
+title: Using Environment Variables
+description: Learn how to securely manage configuration with environment variables and .env files in Discore
+---
+
+Environment variables provide a secure way to manage sensitive configuration data like bot tokens, API keys, and database credentials. Discore has built-in support for both `.env` files and environment variable substitution in YAML configs.
+
+## Why Use Environment Variables?
+
+Environment variables offer several advantages:
+
+- **Security** - Keep secrets out of version control
+- **Flexibility** - Different values for dev/staging/production
+- **Portability** - Easy deployment across different environments
+- **Best Practice** - Industry standard for configuration management
+
+<Warning>
+  Never commit your bot token or other sensitive credentials to version control. Always use environment variables for secrets.
+</Warning>
+
+## .env File Support
+
+Discore automatically loads environment variables from a `.env` file using the `python-dotenv` library.
+
+### Setting Up .env
+
+<Steps>
+  <Step title="Create .env File">
+    Create a `.env` file in your project root:
+
+    ```bash .env
+    # Discord Bot Configuration
+    DISCORD_TOKEN=your_bot_token_here
+    DISCORD_PREFIX=!
+
+    # Database Configuration
+    DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+    # API Keys
+    WEATHER_API_KEY=your_weather_api_key
+    SPOTIFY_CLIENT_ID=your_spotify_client_id
+    SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+
+    # Bot Configuration
+    BOT_VERSION=1.0.0
+    BOT_COLOR=0x5865F2
+    LOG_CHANNEL_ID=123456789012345678
+    ```
+
+    <Tip>
+      Use descriptive, UPPERCASE names with underscores for environment variables (e.g., `DISCORD_TOKEN`, `API_KEY`).
+    </Tip>
+  </Step>
+
+  <Step title="Add .env to .gitignore">
+    Ensure `.env` is in your `.gitignore` to prevent committing secrets:
+
+    ```gitignore .gitignore
+    # Environment variables
+    .env
+    .env.local
+    .env.*.local
+
+    # Python
+    __pycache__/
+    *.py[cod]
+    *$py.class
+
+    # Virtual Environment
+    venv/
+    env/
+    ```
+  </Step>
+
+  <Step title="Create .env.example">
+    Create a template for other developers:
+
+    ```bash .env.example
+    # Discord Bot Configuration
+    DISCORD_TOKEN=your_bot_token_here
+    DISCORD_PREFIX=!
+
+    # Database Configuration
+    DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+    # API Keys (optional)
+    WEATHER_API_KEY=
+    SPOTIFY_CLIENT_ID=
+    SPOTIFY_CLIENT_SECRET=
+
+    # Bot Configuration
+    BOT_VERSION=1.0.0
+    BOT_COLOR=0x5865F2
+    LOG_CHANNEL_ID=
+    ```
+
+    <Note>
+      Commit `.env.example` to version control as a template, but never commit the actual `.env` file.
+    </Note>
+  </Step>
+</Steps>
+
+## Using Environment Variables in config.yml
+
+Discore uses the `yamlenv` library to support environment variable substitution in YAML configuration files.
+
+### Syntax: $ENV_VAR
+
+Use the `$VARIABLE_NAME` syntax to reference environment variables:
+
+```yaml config.yml
+prefix: "$DISCORD_PREFIX"
+token: "$DISCORD_TOKEN"
+description: "My Discord Bot"
+version: "$BOT_VERSION"
+color: "$BOT_COLOR"
+
+log:
+  channel: "$LOG_CHANNEL_ID"
+  file: "bot.log"
+  alert_user: true
+  stream: true
+  level: "INFO"
+```
+
+<Tip>
+  Environment variables are loaded before the config file is parsed, so all `$VARIABLE_NAME` references are replaced with their values.
+</Tip>
+
+### With Default Values
+
+Provide fallback values using the `${VAR:-default}` syntax:
+
+```yaml config.yml
+prefix: "${DISCORD_PREFIX:-!}"          # Defaults to "!"
+token: "$DISCORD_TOKEN"                  # Required, no default
+locale: "${BOT_LOCALE:-en-US}"          # Defaults to "en-US"
+color: "${BOT_COLOR:-0x5865F2}"         # Defaults to Discord Blurple
+
+log:
+  level: "${LOG_LEVEL:-INFO}"           # Defaults to "INFO"
+  channel: "$LOG_CHANNEL_ID"            # Optional, no default
+```
+
+## Complete Example
+
+Here's a complete example showing best practices:
+
+### Project Structure
+
+```
+my-bot/
+├── .env                    # Not in git
+├── .env.example           # In git
+├── .gitignore
+├── config.yml
+├── main.py
+└── cogs/
+    └── api_commands.py
+```
+
+### Environment File
+
+```bash .env
+# Required
+DISCORD_TOKEN=MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.GhIjKl.MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUv
+
+# Optional with defaults
+DISCORD_PREFIX=!
+BOT_VERSION=1.2.3
+BOT_COLOR=0x5865F2
+
+# Development settings
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=DEBUG
+
+# External APIs
+WEATHER_API_KEY=abc123def456
+DATABASE_URL=sqlite:///bot.db
+```
+
+### Configuration File
+
+```yaml config.yml
+# Core Settings (from environment)
+prefix: "${DISCORD_PREFIX:-!}"
+token: "$DISCORD_TOKEN"
+version: "${BOT_VERSION:-1.0.0}"
+color: "${BOT_COLOR:-0x5865F2}"
+
+# Bot Behavior
+hot_reload: "${DEBUG:-false}"
+auto_sync: true
+case_insensitive: true
+locale: "en-US"
+
+# Logging Configuration
+log:
+  channel: "${LOG_CHANNEL_ID:-}"
+  file: "${LOG_FILE:-bot.log}"
+  level: "${LOG_LEVEL:-INFO}"
+  stream: true
+  alert_user: true
+
+# Help Command
+help:
+  name: "help"
+  aliases: ["h"]
+  brief: "Shows help about the bot"
+```
+
+### Accessing in Code
+
+Access environment variables directly in your Python code:
+
+```python cogs/api_commands.py
+import discore
+import os
+import aiohttp
+
+class APICommands(discore.Cog, name="api", description="Commands using external APIs"):
+    def __init__(self):
+        super().__init__()
+        # Access environment variables
+        self.weather_api_key = os.getenv('WEATHER_API_KEY')
+        self.spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID')
+        self.spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+
+    @discore.command(name="weather", brief="Get weather information")
+    async def weather(self, ctx, *, city: str):
+        """Get weather for a city using the Weather API."""
+        if not self.weather_api_key:
+            await ctx.send("Weather API key not configured.")
+            return
+
+        async with aiohttp.ClientSession() as session:
+            url = f"https://api.weather.com/v1/weather?city={city}&key={self.weather_api_key}"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    await ctx.send(f"Weather in {city}: {data['temp']}°C")
+                else:
+                    await ctx.send("Failed to fetch weather data.")
+```
+
+### Main File
+
+```python main.py
+import discore
+import os
+
+# Environment variables are automatically loaded from .env
+bot = discore.Bot()
+
+# Access environment via discore.utils.config or os.getenv
+if os.getenv('DEBUG', 'false').lower() == 'true':
+    print("Running in DEBUG mode")
+    print(f"Bot version: {discore.utils.config.version}")
+
+bot.run()
+```
+
+## Custom .env File Location
+
+By default, Discore looks for `.env` in the current directory. To use a different location:
+
+```python main.py
+import discore
+
+bot = discore.Bot(env_file='/path/to/custom.env')
+bot.run()
+```
+
+Or disable `.env` loading entirely:
+
+```python
+bot = discore.Bot(env_file=None)
+```
+
+## Best Practices
+
+### 1. Required vs Optional Variables
+
+Clearly distinguish between required and optional environment variables:
+
+```bash .env
+# === REQUIRED ===
+DISCORD_TOKEN=your_token_here
+
+# === OPTIONAL (with defaults) ===
+DISCORD_PREFIX=!
+LOG_LEVEL=INFO
+
+# === OPTIONAL (features) ===
+WEATHER_API_KEY=
+DATABASE_URL=
+```
+
+### 2. Validation
+
+Validate required environment variables at startup:
+
+```python main.py
+import discore
+import os
+import sys
+
+# Validate required environment variables
+required_vars = ['DISCORD_TOKEN']
+missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+if missing_vars:
+    print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
+    print("Please check your .env file")
+    sys.exit(1)
+
+bot = discore.Bot()
+bot.run()
+```
+
+### 3. Type Conversion
+
+Convert environment variables to appropriate types:
+
+```python
+import os
+
+# String (default)
+bot_prefix = os.getenv('DISCORD_PREFIX', '!')
+
+# Integer
+log_channel = int(os.getenv('LOG_CHANNEL_ID', '0'))
+
+# Boolean
+debug_mode = os.getenv('DEBUG', 'false').lower() in ('true', '1', 'yes')
+
+# Hex color
+bot_color = int(os.getenv('BOT_COLOR', '0x5865F2'), 16)
+
+# List
+bot_admins = os.getenv('BOT_ADMINS', '').split(',')
+```
+
+### 4. Security
+
+<Warning>
+  Security checklist:
+  - ✅ Add `.env` to `.gitignore`
+  - ✅ Never log or print tokens/secrets
+  - ✅ Use environment-specific `.env` files
+  - ✅ Rotate tokens if accidentally exposed
+  - ✅ Use read-only file permissions (chmod 600 .env)
+</Warning>
+
+### 5. Documentation
+
+Document all environment variables in your README:
+
+```markdown README.md
+## Environment Variables
+
+### Required
+
+- `DISCORD_TOKEN` - Your Discord bot token from the Developer Portal
+
+### Optional
+
+- `DISCORD_PREFIX` - Command prefix (default: `!`)
+- `BOT_VERSION` - Bot version string (default: `1.0.0`)
+- `LOG_LEVEL` - Logging level: DEBUG, INFO, WARNING, ERROR (default: `INFO`)
+- `LOG_CHANNEL_ID` - Discord channel ID for error logging
+
+### External Services
+
+- `WEATHER_API_KEY` - API key for weather commands
+- `DATABASE_URL` - Database connection string
+```
+
+## Environment-Specific Configurations
+
+Use different `.env` files for different environments:
+
+```bash
+# Development
+.env.development
+
+# Staging
+.env.staging
+
+# Production
+.env.production
+```
+
+Load the appropriate file:
+
+```python main.py
+import discore
+import os
+
+environment = os.getenv('ENVIRONMENT', 'development')
+env_file = f".env.{environment}"
+
+bot = discore.Bot(env_file=env_file)
+bot.run()
+```
+
+## Common Patterns
+
+### Database Configuration
+
+```bash .env
+DATABASE_URL=postgresql://user:password@localhost:5432/botdb
+DATABASE_POOL_SIZE=10
+```
+
+```python
+import os
+from sqlalchemy import create_engine
+
+engine = create_engine(
+    os.getenv('DATABASE_URL'),
+    pool_size=int(os.getenv('DATABASE_POOL_SIZE', '10'))
+)
+```
+
+### Multiple Tokens
+
+```bash .env
+DISCORD_TOKEN_MAIN=token_for_main_bot
+DISCORD_TOKEN_DEV=token_for_dev_bot
+ACTIVE_BOT=main
+```
+
+```python main.py
+import os
+import discore
+
+active_bot = os.getenv('ACTIVE_BOT', 'main')
+token_key = f'DISCORD_TOKEN_{active_bot.upper()}'
+
+bot = discore.Bot()
+bot.run(token=os.getenv(token_key))
+```
+
+### Feature Flags
+
+```bash .env
+FEATURE_MUSIC=true
+FEATURE_ECONOMY=false
+FEATURE_LEVELING=true
+```
+
+```python cogs/music.py
+import os
+import discore
+
+if os.getenv('FEATURE_MUSIC', 'false').lower() == 'true':
+    class Music(discore.Cog):
+        # Music commands
+        pass
+```
+
+## Next Steps
+
+- [Multiple Environments](/guides/multiple-environments) - Learn about managing dev/staging/prod configs
+- [Basic Bot Tutorial](/guides/basic-bot) - Build your first bot with secure configuration
+- [Custom Cogs](/guides/custom-cogs) - Organize commands and access config values

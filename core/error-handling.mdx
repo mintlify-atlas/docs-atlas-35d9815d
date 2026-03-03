@@ -1,0 +1,443 @@
+---
+title: Error Handling
+description: Automatic error detection, user-friendly messages, and detailed logging for all command errors
+---
+
+Discore provides comprehensive automatic error handling for commands with localized user messages, detailed logging, and optional Discord channel notifications.
+
+## Automatic Error Handling
+
+All command errors are automatically handled by the `handle_error()` method. You don't need to write try-catch blocks for common errors:
+
+```python
+import discore
+
+bot = discore.Bot()
+
+@bot.command()
+async def ban(ctx, member: discord.Member, *, reason: str):
+    # No try-catch needed!
+    # Discore handles:
+    # - Missing member argument → command_error.missing_argument
+    # - Invalid member → command_error.bad_argument
+    # - Bot lacks permissions → command_error.bot_missing_permission
+    # - User lacks permissions → command_error.user_missing_permission
+    await member.ban(reason=reason)
+    await ctx.send(f"{member} has been banned.")
+```
+
+## Error Handling Methods
+
+### on_command_error()
+
+The entry point for all command errors:
+
+```python
+async def on_command_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Default behavior:
+1. Returns if custom error handler exists on command (`@command.error`)
+2. Returns if custom error handler exists on cog (`cog_command_error`)
+3. Delegates to `handle_error()` for automatic handling
+
+```python
+# Override to add custom error handling
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("Unknown command! Try `!help`")
+    else:
+        # Fall back to automatic handling
+        await bot.handle_error(ctx, error)
+```
+
+### handle_error()
+
+```python
+async def handle_error(ctx: commands.Context, error: Exception) -> None
+```
+
+Automatically detects error type and:
+1. Sends localized user-friendly message
+2. Logs error to console, file, and Discord channel
+3. Resets command cooldown (except for `CommandOnCooldown` errors)
+4. Creates server invite for debugging (for critical errors)
+
+This method handles all common error types automatically.
+
+## Built-in Error Types
+
+Discore handles these error types out of the box:
+
+### Argument Errors
+
+<AccordionGroup>
+  <Accordion title="ConversionError / BadArgument">
+    **When**: Argument can't be converted to expected type
+    
+    **Example**: `!ban not_a_user` when expecting a Member
+    
+    **User sees**: Localized `command_error.bad_argument` with command usage
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="MissingRequiredArgument">
+    **When**: Required argument not provided
+    
+    **Example**: `!ban` (missing member argument)
+    
+    **User sees**: Localized `command_error.missing_argument` with command usage
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="InvalidEndOfQuotedStringError / ExpectedClosingQuoteError">
+    **When**: Quote formatting issues in arguments
+    
+    **Example**: `!say "hello world` (missing closing quote)
+    
+    **User sees**: Localized `command_error.invalid_quoted_string`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+</AccordionGroup>
+
+### Permission Errors
+
+<AccordionGroup>
+  <Accordion title="BotMissingPermissions / discord.Forbidden">
+    **When**: Bot lacks permissions for the action
+    
+    **Example**: Bot tries to ban without Ban Members permission
+    
+    **User sees**: Localized `command_error.bot_missing_permission`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="MissingPermissions">
+    **When**: User lacks required permissions
+    
+    **Example**: Non-admin tries to use admin command
+    
+    **User sees**: Localized `command_error.user_missing_permission`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="NotOwner">
+    **When**: Non-owner tries to use owner-only command
+    
+    **Example**: Regular user tries `!shutdown`
+    
+    **User sees**: Localized `command_error.user_missing_permission`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+</AccordionGroup>
+
+### Context Errors
+
+<AccordionGroup>
+  <Accordion title="discord.NotFound">
+    **When**: Referenced Discord resource doesn't exist
+    
+    **Example**: Trying to edit deleted message
+    
+    **User sees**: Localized `command_error.not_found`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="PrivateMessageOnly">
+    **When**: Guild-only command used in DMs
+    
+    **Example**: `!serverinfo` in DM
+    
+    **User sees**: Localized `command_error.private_message_only`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+  
+  <Accordion title="NoPrivateMessage">
+    **When**: DM-only command used in server
+    
+    **Example**: `!privacy` in server channel
+    
+    **User sees**: Localized `command_error.no_private_message`
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+  </Accordion>
+</AccordionGroup>
+
+### Cooldown Errors
+
+<AccordionGroup>
+  <Accordion title="CommandOnCooldown">
+    **When**: Command used while on cooldown
+    
+    **Example**: Using `!daily` twice within cooldown period
+    
+    **User sees**: Localized `command_error.on_cooldown` with Discord timestamp ("Try again `<t:1234567890:R>`")
+    
+    **Logged as**: INFO (if `log.commands` enabled)
+    
+    **Note**: Cooldown is NOT reset (unlike other errors)
+  </Accordion>
+</AccordionGroup>
+
+### Discord API Errors
+
+<AccordionGroup>
+  <Accordion title="ServerDisconnectedError / DiscordServerError / ClientOSError">
+    **When**: Discord API connection issues
+    
+    **Example**: Discord API outage or network problem
+    
+    **User sees**: Nothing (transient error)
+    
+    **Logged as**: WARNING with error details
+  </Accordion>
+</AccordionGroup>
+
+### Unhandled Errors
+
+<AccordionGroup>
+  <Accordion title="CommandInvokeError (generic)">
+    **When**: Unhandled exception in command code
+    
+    **Example**: `ValueError` in your command logic
+    
+    **User sees**: Localized `exception` with file, line, function, error type, and message (if `log.alert_user` enabled)
+    
+    **Logged as**: ERROR with full traceback
+    
+    **Discord**: Embed sent to log channel with full context and traceback
+  </Accordion>
+  
+  <Accordion title="CommandNotFound">
+    **When**: Unknown command invoked
+    
+    **Example**: `!unknowncommand`
+    
+    **User sees**: Nothing (silently ignored)
+    
+    **Logged as**: Not logged
+  </Accordion>
+</AccordionGroup>
+
+## User Alert Messages
+
+When `log.alert_user` is enabled, users receive error messages:
+
+```yaml config.yml
+log:
+  alert_user: true
+```
+
+### Example User Messages
+
+**Missing Argument:**
+```
+One or more arguments are missing.
+Try 
+```
+!ban \<member\> \<reason\>
+```
+For more information on usage, send
+```
+!help ban
+```
+```
+
+**Permission Error:**
+```
+I do not have the necessary permissions to perform this action (role not high enough or permission not granted)
+```
+
+**Unhandled Exception:**
+```
+An exceptional error has occurred. The bug has been automatically reported, please be patient. Detail of the error :
+```
+File 'commands.py', line '42', function 'process_payment'
+ValueError: insufficient funds
+```
+```
+
+<Note>
+  All user messages are automatically localized based on the user's Discord language preference.
+</Note>
+
+## Discord Server Invite for Debugging
+
+For critical errors, Discore can create a temporary invite to allow developers to investigate:
+
+```yaml locales/en-US.yml
+command_error:
+  invite_message: "A bug has occurred. This invitation will allow, if needed, the developer to access the server, to understand why the bug occurred. This invitation is limited to one use, grants only the status of temporary member, and lasts maximum 1 day."
+```
+
+This feature helps debug issues specific to certain servers.
+
+## Error Logging
+
+Errors are logged to three destinations:
+
+### 1. Console/File
+
+```
+[2024-03-03 12:00:00] [INFO] discore.bot: 'ban' command cancelled for 'User#1234' (123456789): Missing required argument: member
+```
+
+### 2. Discord Channel (Critical Errors Only)
+
+Embeds sent to `log.channel` with:
+- Command name and user info
+- Server and channel details
+- Link to original message
+- Full error traceback
+- File, line, and function where error occurred
+
+### 3. User Notification (if enabled)
+
+Localized message sent to the user explaining the error.
+
+See [Logging](/core/logging) for configuration details.
+
+## Custom Error Handlers
+
+### Command-level Error Handler
+
+```python
+@bot.command()
+async def divide(ctx, a: int, b: int):
+    result = a / b
+    await ctx.send(f"{a} / {b} = {result}")
+
+@divide.error
+async def divide_error(ctx, error):
+    if isinstance(error, commands.CommandInvokeError) and isinstance(error.original, ZeroDivisionError):
+        await ctx.send("Cannot divide by zero!")
+    else:
+        # Fall back to default handler
+        await bot.handle_error(ctx, error)
+```
+
+### Cog-level Error Handler
+
+```python
+class Math(discore.Cog):
+    
+    @discore.command()
+    async def add(self, ctx, a: int, b: int):
+        await ctx.send(f"{a} + {b} = {a + b}")
+    
+    @discore.command()
+    async def subtract(self, ctx, a: int, b: int):
+        await ctx.send(f"{a} - {b} = {a - b}")
+    
+    async def cog_command_error(self, ctx, error):
+        """Handle errors for all commands in this cog"""
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("Please provide valid numbers!")
+        else:
+            # Fall back to default handler
+            await self.bot.handle_error(ctx, error)
+```
+
+### Global Error Handler
+
+```python
+@bot.event
+async def on_command_error(ctx, error):
+    # Custom handling for specific errors
+    if isinstance(error, commands.CommandNotFound):
+        # Suggest similar commands
+        await ctx.send(f"Command not found. Try `{bot.command_prefix}help`")
+    elif isinstance(error, commands.DisabledCommand):
+        await ctx.send("This command is currently disabled.")
+    else:
+        # Use Discore's automatic error handling for everything else
+        await bot.handle_error(ctx, error)
+```
+
+<Warning>
+  When you override `on_command_error`, automatic error handling is disabled. Always call `await bot.handle_error(ctx, error)` for unhandled errors.
+</Warning>
+
+## Hybrid Command Errors
+
+Hybrid commands (slash + text) wrap errors in `HybridCommandError`:
+
+```python
+if isinstance(error, commands.HybridCommandError):
+    error = error.original  # Extract the real error
+```
+
+Discore automatically unwraps these before processing.
+
+## App Command (Slash) Errors
+
+Slash commands can raise `discord.app_commands.CommandInvokeError`. Discore handles these the same way as text command errors.
+
+## Disabling Error Alerts
+
+To disable user-facing error messages:
+
+```yaml config.yml
+log:
+  alert_user: false
+```
+
+Errors will still be logged to console/file/Discord, but users won't see error details.
+
+## Example: Complete Error Handling
+
+```python
+import discore
+import discord
+from discord.ext import commands
+
+bot = discore.Bot()
+
+@bot.command()
+@commands.has_permissions(ban_members=True)
+@commands.bot_has_permissions(ban_members=True)
+@commands.cooldown(1, 60, commands.BucketType.user)
+async def ban(ctx, member: discord.Member, *, reason: str = "No reason provided"):
+    """Ban a member from the server"""
+    # Discore automatically handles:
+    # - MissingRequiredArgument (if member not provided)
+    # - BadArgument (if member invalid)
+    # - MissingPermissions (user lacks ban permission)
+    # - BotMissingPermissions (bot lacks ban permission)
+    # - CommandOnCooldown (command on cooldown)
+    # - Forbidden (bot role hierarchy issue)
+    # - Any unexpected errors
+    
+    await member.ban(reason=reason)
+    await ctx.send(f"✅ {member} has been banned. Reason: {reason}")
+
+@ban.error
+async def ban_error(ctx, error):
+    """Custom error handler for ban command"""
+    if isinstance(error, commands.CommandInvokeError):
+        if isinstance(error.original, discord.Forbidden):
+            # Custom message for role hierarchy issues
+            await ctx.send("I cannot ban this member (their role is higher than mine).")
+            return
+    
+    # Use default handler for all other errors
+    await bot.handle_error(ctx, error)
+
+bot.run()
+```
+
+## Related
+
+- [Logging](/core/logging) - Configure error logging destinations
+- [Localization](/core/localization) - Customize error messages for different languages
+- [Bot](/core/bot) - Learn about the Bot class and error handling flow
+- [Commands](/core/commands) - Understand command structure and checks

@@ -1,0 +1,283 @@
+---
+title: 'View'
+description: 'Container for interactive UI components like buttons and select menus'
+---
+
+## Overview
+
+The `View` class is a container that holds interactive UI components (buttons, select menus, etc.) and manages their lifecycle. In Discore, the View class extends discord.py's View with enhanced error handling and logging.
+
+## Class Definition
+
+```python
+from discore.ui import View
+
+class View(discord.ui.View):
+    """A container for UI components with enhanced error handling."""
+```
+
+## Constructor
+
+```python
+View(*, timeout: float | None = 180.0)
+```
+
+<ParamField path="timeout" type="float | None" default="180.0">
+  The timeout in seconds before the view is automatically removed. Set to `None` for no timeout.
+</ParamField>
+
+## Key Features
+
+### Enhanced Error Handling
+
+Discore's View provides automatic error handling for component interactions:
+
+- **Network Error Handling**: Gracefully handles `ServerDisconnectedError`, `DiscordServerError`, and `ClientOSError`
+- **User Notifications**: Optionally alerts users when errors occur (configurable via `config.log.alert_user`)
+- **Detailed Logging**: Logs interaction failures with context including server, item, and user information
+- **Error Context**: Extracts filename, line number, and function name from error traceback
+
+See ui/view.py:22-60 for the implementation.
+
+## Methods
+
+### add_item
+
+```python
+def add_item(item: Item) -> View
+```
+
+Adds an item to the view.
+
+<ParamField path="item" type="Item" required>
+  The item to add (Button, Select, etc.)
+</ParamField>
+
+**Returns:** `View` - The view instance for method chaining
+
+### remove_item
+
+```python
+def remove_item(item: Item) -> View
+```
+
+Removes an item from the view.
+
+<ParamField path="item" type="Item" required>
+  The item to remove
+</ParamField>
+
+**Returns:** `View` - The view instance for method chaining
+
+### clear_items
+
+```python
+def clear_items() -> View
+```
+
+Removes all items from the view.
+
+**Returns:** `View` - The view instance for method chaining
+
+### stop
+
+```python
+def stop() -> None
+```
+
+Stops listening for interactions and removes all items.
+
+### is_finished
+
+```python
+def is_finished() -> bool
+```
+
+Returns whether the view has finished interacting.
+
+**Returns:** `bool` - `True` if the view has stopped or timed out
+
+### is_dispatching
+
+```python
+def is_dispatching() -> bool
+```
+
+Returns whether the view is currently dispatching an interaction.
+
+**Returns:** `bool` - `True` if currently processing an interaction
+
+### is_persistent
+
+```python
+def is_persistent() -> bool
+```
+
+Returns whether the view is persistent (has a timeout of None).
+
+**Returns:** `bool` - `True` if the view is persistent
+
+### wait
+
+```python
+async def wait() -> bool
+```
+
+Waits until the view has finished interacting.
+
+**Returns:** `bool` - `True` if the view timed out, `False` otherwise
+
+## Callbacks
+
+### on_timeout
+
+```python
+async def on_timeout() -> None
+```
+
+Called when the view times out. Override this method to perform custom actions.
+
+### on_error
+
+```python
+async def on_error(
+    interaction: Interaction,
+    error: Exception,
+    item: Item
+) -> None
+```
+
+Called when an error occurs during an interaction. Discore's implementation provides:
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction that caused the error
+</ParamField>
+
+<ParamField path="error" type="Exception" required>
+  The exception that was raised
+</ParamField>
+
+<ParamField path="item" type="Item" required>
+  The item that raised the error
+</ParamField>
+
+## Usage Examples
+
+### Basic View with Buttons
+
+```python
+from discore.ui import View, Button
+from discord import Interaction, ButtonStyle
+
+class MyView(View):
+    def __init__(self):
+        super().__init__(timeout=60.0)
+    
+    @discord.ui.button(label="Click Me", style=ButtonStyle.primary)
+    async def button_callback(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("Button clicked!")
+
+# Send the view
+view = MyView()
+await ctx.send("Click a button:", view=view)
+```
+
+### Dynamic Item Management
+
+```python
+view = View()
+
+# Add items dynamically
+button1 = Button(label="Option 1", custom_id="opt1")
+button2 = Button(label="Option 2", custom_id="opt2")
+
+view.add_item(button1)
+view.add_item(button2)
+
+await ctx.send("Choose an option:", view=view)
+
+# Remove an item later
+view.remove_item(button1)
+```
+
+### Persistent View
+
+```python
+class PersistentView(View):
+    def __init__(self):
+        # Persistent views have no timeout
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(label="Always Available", custom_id="persistent_btn")
+    async def persistent_button(self, interaction: Interaction, button: Button):
+        await interaction.response.send_message("This works even after restart!")
+```
+
+### Custom Timeout Handler
+
+```python
+class TimeoutView(View):
+    def __init__(self):
+        super().__init__(timeout=30.0)
+        self.message = None
+    
+    async def on_timeout(self):
+        # Disable all buttons when view times out
+        for item in self.children:
+            item.disabled = True
+        
+        if self.message:
+            await self.message.edit(view=self)
+
+# Use the view
+view = TimeoutView()
+view.message = await ctx.send("Quick! Click within 30 seconds:", view=view)
+await view.wait()
+```
+
+### Error Handling Override
+
+```python
+class CustomErrorView(View):
+    async def on_error(self, interaction: Interaction, error: Exception, item: Item):
+        # Custom error handling
+        await interaction.response.send_message(
+            f"An error occurred: {type(error).__name__}",
+            ephemeral=True
+        )
+        # Still call parent for logging
+        await super().on_error(interaction, error, item)
+```
+
+## Properties
+
+### children
+
+```python
+children: list[Item]
+```
+
+List of all items in the view (read-only).
+
+### timeout
+
+```python
+timeout: float | None
+```
+
+The timeout value in seconds. Can be modified after construction.
+
+## Notes
+
+- Views can contain up to 25 components (5 rows × 5 components per row)
+- Each row can contain up to 5 buttons or 1 select menu
+- Select menus take up an entire row
+- Persistent views (timeout=None) require all items to have custom_id set
+- For persistent views, the bot must re-instantiate the view on startup
+
+## Related
+
+- [Button](/api/ui/button) - Button component for views
+- [Select](/api/ui/select) - Select menu components
+- [Modal](/api/ui/modal) - Modal dialog alternative to views
+- [Item](/api/ui/item) - Base class for all UI components

@@ -1,0 +1,377 @@
+---
+title: 'Item'
+description: 'Base class for all UI components in views'
+---
+
+## Overview
+
+The `Item` class is the base class for all UI components that can be added to views. This includes buttons, select menus, and text inputs. Discore re-exports discord.py's Item class.
+
+You typically won't instantiate `Item` directly, but rather use its subclasses like `Button`, `Select`, or `TextInput`.
+
+## Class Definition
+
+```python
+from discore.ui import Item
+
+class Item(discord.ui.Item):
+    """Base class for UI components."""
+```
+
+## Type Parameters
+
+- **I** - The item type (used for type hints)
+- **V** - The view type the item belongs to
+
+## Properties
+
+### type
+
+```python
+type: ComponentType
+```
+
+The component type of this item. Read-only property.
+
+Possible values:
+- `ComponentType.button` - Button component
+- `ComponentType.select` - String select menu
+- `ComponentType.text_input` - Text input field
+- `ComponentType.user_select` - User select menu
+- `ComponentType.role_select` - Role select menu
+- `ComponentType.mentionable_select` - Mentionable select menu
+- `ComponentType.channel_select` - Channel select menu
+
+### custom_id
+
+```python
+custom_id: str | None
+```
+
+The custom ID of the component. This is used to identify the component in callbacks.
+
+<Note>
+Custom IDs are required for persistent views (views with `timeout=None`).
+</Note>
+
+### row
+
+```python
+row: int | None
+```
+
+The row the item is placed in (0-4). If `None`, the item is placed automatically.
+
+### width
+
+```python
+width: int
+```
+
+The width of the item in the layout. Most items have a width of 1, while select menus have a width of 5 (full row).
+
+### view
+
+```python
+view: View | None
+```
+
+The view this item is attached to. `None` if not attached to any view.
+
+### disabled
+
+```python
+disabled: bool
+```
+
+Whether the item is disabled. Disabled items appear greyed out and cannot be interacted with.
+
+## Methods
+
+### callback
+
+```python
+async def callback(interaction: Interaction) -> None
+```
+
+The callback coroutine that is called when the item is interacted with.
+
+Override this method to define custom behavior for the item.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object representing the user's interaction with the item
+</ParamField>
+
+### is_dispatchable
+
+```python
+def is_dispatchable() -> bool
+```
+
+Returns whether the item is dispatchable (can receive interactions).
+
+**Returns:** `bool` - `True` if the item can be interacted with
+
+### is_persistent
+
+```python
+def is_persistent() -> bool
+```
+
+Returns whether the item is persistent (will work across bot restarts).
+
+**Returns:** `bool` - `True` if the item has a custom_id
+
+### to_component_dict
+
+```python
+def to_component_dict() -> dict
+```
+
+Converts the item to a dictionary representation for the Discord API.
+
+**Returns:** `dict` - Dictionary representation of the component
+
+## Callback Type
+
+The `ItemCallbackType` type alias represents the callback signature:
+
+```python
+ItemCallbackType = Callable[
+    [View, Interaction, Item],
+    Coroutine[Any, Any, Any]
+]
+```
+
+This is used when defining callbacks outside of methods.
+
+## Usage Examples
+
+### Accessing Item Properties
+
+```python
+from discore.ui import View, Button
+from discord import ButtonStyle
+
+class MyView(View):
+    def __init__(self):
+        super().__init__()
+        
+        button = Button(label="Click Me", style=ButtonStyle.primary, custom_id="my_btn")
+        self.add_item(button)
+        
+        # Access item properties
+        print(f"Type: {button.type}")  # ComponentType.button
+        print(f"Custom ID: {button.custom_id}")  # my_btn
+        print(f"Row: {button.row}")  # None (auto-placed)
+        print(f"Width: {button.width}")  # 1
+        print(f"Disabled: {button.disabled}")  # False
+```
+
+### Iterating Over Items
+
+```python
+class MyView(View):
+    def __init__(self):
+        super().__init__()
+        # Add multiple items...
+    
+    def disable_all(self):
+        """Disable all items in the view."""
+        for item in self.children:
+            item.disabled = True
+    
+    def enable_all(self):
+        """Enable all items in the view."""
+        for item in self.children:
+            item.disabled = False
+
+view = MyView()
+view.disable_all()
+await message.edit(view=view)
+```
+
+### Finding Items by Custom ID
+
+```python
+class MyView(View):
+    def get_item_by_id(self, custom_id: str) -> Item | None:
+        """Find an item by its custom ID."""
+        for item in self.children:
+            if hasattr(item, 'custom_id') and item.custom_id == custom_id:
+                return item
+        return None
+    
+    async def some_method(self):
+        # Find and modify a specific item
+        button = self.get_item_by_id("submit_btn")
+        if button:
+            button.disabled = True
+```
+
+### Custom Item Subclass
+
+```python
+from discore.ui import Item
+from discord import ComponentType, ButtonStyle, Interaction
+from typing import Optional
+
+class CustomButton(Item):
+    """A custom button with additional functionality."""
+    
+    def __init__(
+        self,
+        label: str,
+        custom_id: str,
+        click_count: int = 0
+    ):
+        super().__init__()
+        self._label = label
+        self._custom_id = custom_id
+        self.click_count = click_count
+    
+    @property
+    def type(self) -> ComponentType:
+        return ComponentType.button
+    
+    @property
+    def custom_id(self) -> str:
+        return self._custom_id
+    
+    async def callback(self, interaction: Interaction):
+        self.click_count += 1
+        await interaction.response.send_message(
+            f"Clicked {self.click_count} times!",
+            ephemeral=True
+        )
+```
+
+### Checking Item Types
+
+```python
+from discord import ComponentType
+
+class MyView(View):
+    def get_buttons(self) -> list[Button]:
+        """Get all button items."""
+        return [
+            item for item in self.children
+            if item.type == ComponentType.button
+        ]
+    
+    def get_selects(self) -> list[Select]:
+        """Get all select menu items."""
+        return [
+            item for item in self.children
+            if item.type in (
+                ComponentType.select,
+                ComponentType.user_select,
+                ComponentType.role_select,
+                ComponentType.channel_select,
+                ComponentType.mentionable_select
+            )
+        ]
+```
+
+### Dynamic Row Placement
+
+```python
+class MultiRowView(View):
+    def __init__(self):
+        super().__init__()
+        
+        # Add items to specific rows
+        for i in range(10):
+            button = Button(label=f"Button {i+1}", custom_id=f"btn_{i}")
+            # Place 5 buttons per row
+            button.row = i // 5
+            self.add_item(button)
+        
+        # First 5 buttons in row 0, next 5 in row 1
+```
+
+### Conditional Item Visibility
+
+```python
+class ConditionalView(View):
+    def __init__(self, user_role: str):
+        super().__init__()
+        
+        # Always show basic button
+        self.add_item(Button(label="Info", custom_id="info"))
+        
+        # Only add admin button for admins
+        if user_role == "admin":
+            admin_btn = Button(
+                label="Admin Panel",
+                style=ButtonStyle.danger,
+                custom_id="admin"
+            )
+            self.add_item(admin_btn)
+
+# Use different views based on permissions
+if is_admin(ctx.author):
+    view = ConditionalView("admin")
+else:
+    view = ConditionalView("user")
+
+await ctx.send("Dashboard:", view=view)
+```
+
+### Item State Management
+
+```python
+class StatefulView(View):
+    def __init__(self):
+        super().__init__()
+        self.states = {}  # Track state per item
+    
+    def add_stateful_button(self, label: str, custom_id: str, initial_state: dict):
+        button = Button(label=label, custom_id=custom_id)
+        button.callback = self.make_callback(custom_id)
+        self.add_item(button)
+        self.states[custom_id] = initial_state
+    
+    def make_callback(self, custom_id: str):
+        async def callback(interaction: Interaction):
+            state = self.states[custom_id]
+            # Use state in callback...
+            await interaction.response.send_message(
+                f"State: {state}",
+                ephemeral=True
+            )
+        return callback
+```
+
+## Component Types
+
+```python
+from discord import ComponentType
+
+# Available component types
+ComponentType.action_row      # Container for components (internal)
+ComponentType.button          # Button component
+ComponentType.select          # String select menu
+ComponentType.text_input      # Text input (modals only)
+ComponentType.user_select     # User select menu
+ComponentType.role_select     # Role select menu
+ComponentType.mentionable_select  # User/role select menu
+ComponentType.channel_select  # Channel select menu
+```
+
+## Notes
+
+- The `Item` class is abstract and shouldn't be instantiated directly
+- All items must have a `callback` method defined
+- Items with `custom_id` set can be persistent (survive bot restarts)
+- Maximum 25 items per view (5 rows × 5 items, or 5 select menus)
+- Select menus take up an entire row (width=5)
+- Buttons and text inputs have width=1
+
+## Related
+
+- [View](/api/ui/view) - Container for items
+- [Button](/api/ui/button) - Button item
+- [Select](/api/ui/select) - Select menu items
+- [TextInput](/api/ui/text-input) - Text input item (modals)
+- [DynamicItem](/api/ui/dynamic) - Dynamic item handling

@@ -1,0 +1,600 @@
+---
+title: Managing Multiple Environments
+description: Learn how to manage development, staging, and production configurations with Discore's override system
+---
+
+Discore provides powerful configuration management features that make it easy to maintain separate settings for development, staging, and production environments. This guide covers configuration file loading order, override files, and the `DISCORE_CONFIG` environment variable.
+
+## Why Multiple Environments?
+
+Different environments often need different configurations:
+
+- **Development** - Debug logging, test tokens, local database
+- **Staging** - Production-like settings with test data
+- **Production** - Live bot token, optimized logging, production database
+
+<Tip>
+  Discore's configuration system lets you maintain a base config and override specific values per environment without duplicating settings.
+</Tip>
+
+## Configuration Loading Order
+
+Discore loads configuration files in a specific order, with later files overriding earlier ones:
+
+<Steps>
+  <Step title="1. Default Configuration">
+    Discore's built-in defaults from `discore/default_config.yml`:
+
+    ```yaml
+    prefix: "!"
+    hot_reload: true
+    auto_sync: true
+    locale: "en-US"
+    case_insensitive: true
+    log:
+      alert_user: true
+      commands: false
+      stream: true
+      level: "INFO"
+      # ... more defaults
+    ```
+
+    <Note>
+      These provide sensible defaults so you only need to specify what you want to change.
+    </Note>
+  </Step>
+
+  <Step title="2. Project config.yml">
+    Your project's `config.yml` file (if it exists):
+
+    ```yaml config.yml
+    token: "$DISCORD_TOKEN"
+    description: "My Discord Bot"
+    version: "1.0.0"
+    prefix: "!"
+    ```
+
+    Values here override the defaults.
+  </Step>
+
+  <Step title="3. override.config.yml">
+    The file specified in `override_config` (if it exists):
+
+    ```yaml override.config.yml
+    hot_reload: false
+    log:
+      level: "WARNING"
+    ```
+
+    Great for environment-specific settings.
+  </Step>
+
+  <Step title="4. DISCORE_CONFIG Files">
+    Files specified in the `DISCORE_CONFIG` environment variable:
+
+    ```bash
+    export DISCORE_CONFIG="prod.config.yml"
+    # or multiple files
+    export DISCORE_CONFIG="base.yml:prod.yml"
+    ```
+
+    These have the highest priority.
+  </Step>
+</Steps>
+
+## Using override_config
+
+The `override_config` feature lets you specify an additional configuration file that overrides base settings.
+
+### Basic Usage
+
+In your main `config.yml`, specify the override file:
+
+```yaml config.yml
+token: "$DISCORD_TOKEN"
+prefix: "!"
+description: "My Bot"
+version: "1.0.0"
+
+# Load environment-specific overrides
+override_config: override.config.yml
+```
+
+Create the override file:
+
+```yaml override.config.yml
+# Development overrides
+hot_reload: true
+auto_sync: true
+
+log:
+  level: "DEBUG"
+  stream: true
+```
+
+<Note>
+  Only the values specified in the override file are changed. All other settings from `config.yml` remain unchanged.
+</Note>
+
+### Environment-Specific Overrides
+
+Use different override files for different environments:
+
+<Tabs>
+  <Tab title="Development">
+    ```yaml config.yml
+    # Base configuration
+    token: "$DISCORD_TOKEN"
+    prefix: "!"
+    description: "My Bot"
+
+    # Development override
+    override_config: dev.config.yml
+    ```
+
+    ```yaml dev.config.yml
+    # Development settings
+    hot_reload: true
+    auto_sync: true
+
+    log:
+      level: "DEBUG"
+      stream: true
+      commands: true
+
+    # Development bot has different prefix
+    prefix: "dev!"
+    ```
+  </Tab>
+
+  <Tab title="Production">
+    ```yaml config.yml
+    # Base configuration
+    token: "$DISCORD_TOKEN"
+    prefix: "!"
+    description: "My Bot"
+
+    # Production override
+    override_config: prod.config.yml
+    ```
+
+    ```yaml prod.config.yml
+    # Production settings
+    hot_reload: false
+    auto_sync: false  # Sync manually to avoid rate limits
+
+    log:
+      level: "WARNING"
+      channel: 123456789012345678  # Error logging channel
+      file: "production.log"
+      stream: false
+
+    # Production color scheme
+    color: 0x00FF00
+    ```
+  </Tab>
+
+  <Tab title="Staging">
+    ```yaml config.yml
+    # Base configuration
+    token: "$DISCORD_TOKEN"
+    prefix: "!"
+    description: "My Bot"
+
+    # Staging override
+    override_config: staging.config.yml
+    ```
+
+    ```yaml staging.config.yml
+    # Staging settings (production-like)
+    hot_reload: false
+    auto_sync: true
+
+    log:
+      level: "INFO"
+      channel: 987654321098765432  # Staging log channel
+      stream: true
+
+    prefix: "stage!"
+    color: 0xFFFF00  # Yellow for staging
+    ```
+  </Tab>
+</Tabs>
+
+## DISCORE_CONFIG Environment Variable
+
+The `DISCORE_CONFIG` environment variable provides the most flexible way to specify configuration files.
+
+### Single File
+
+Point to a specific configuration file:
+
+```bash
+export DISCORE_CONFIG="production.yml"
+python main.py
+```
+
+### Multiple Files (Colon-Separated)
+
+Load multiple configuration files in order:
+
+```bash
+export DISCORE_CONFIG="base.yml:secrets.yml:prod.yml"
+python main.py
+```
+
+Files are loaded left-to-right, with later files overriding earlier ones.
+
+### With .env Files
+
+Combine with environment-specific `.env` files:
+
+```bash .env.production
+DISCORD_TOKEN=production_token_here
+DISCORD_PREFIX=!
+DISCORE_CONFIG=config.yml:prod.override.yml
+LOG_LEVEL=WARNING
+```
+
+```python main.py
+import discore
+import os
+
+# Load environment-specific .env
+environment = os.getenv('ENVIRONMENT', 'development')
+bot = discore.Bot(env_file=f'.env.{environment}')
+bot.run()
+```
+
+## Complete Multi-Environment Setup
+
+Here's a complete example showing best practices for managing multiple environments:
+
+### Project Structure
+
+```
+my-bot/
+├── main.py
+├── config/
+│   ├── base.yml              # Base configuration
+│   ├── development.yml       # Development overrides
+│   ├── staging.yml           # Staging overrides
+│   └── production.yml        # Production overrides
+├── .env.development
+├── .env.staging
+├── .env.production
+├── .env.example
+└── cogs/
+    └── ...
+```
+
+### Base Configuration
+
+```yaml config/base.yml
+# Base configuration shared across all environments
+token: "$DISCORD_TOKEN"
+description: "My Discord Bot"
+version: "$BOT_VERSION"
+case_insensitive: true
+locale: "en-US"
+
+help:
+  name: "help"
+  aliases: ["h"]
+  brief: "Shows help"
+
+log:
+  alert_user: true
+  date_format: "%Y-%m-%d %H:%M:%S"
+```
+
+### Environment Configurations
+
+<Tabs>
+  <Tab title="development.yml">
+    ```yaml config/development.yml
+    # Development-specific settings
+    prefix: "dev!"
+    hot_reload: true
+    auto_sync: true
+    color: 0xFF0000  # Red for development
+
+    log:
+      level: "DEBUG"
+      stream: true
+      commands: true
+      file: "dev.log"
+    ```
+  </Tab>
+
+  <Tab title="staging.yml">
+    ```yaml config/staging.yml
+    # Staging-specific settings
+    prefix: "stage!"
+    hot_reload: false
+    auto_sync: true
+    color: 0xFFFF00  # Yellow for staging
+
+    log:
+      level: "INFO"
+      stream: true
+      channel: "$STAGING_LOG_CHANNEL"
+      file: "staging.log"
+    ```
+  </Tab>
+
+  <Tab title="production.yml">
+    ```yaml config/production.yml
+    # Production-specific settings
+    prefix: "!"
+    hot_reload: false
+    auto_sync: false
+    color: 0x00FF00  # Green for production
+
+    log:
+      level: "WARNING"
+      stream: false
+      channel: "$PRODUCTION_LOG_CHANNEL"
+      file: "production.log"
+    ```
+  </Tab>
+</Tabs>
+
+### Environment Files
+
+```bash .env.development
+ENVIRONMENT=development
+DISCORD_TOKEN=dev_bot_token_here
+BOT_VERSION=dev
+DISCORE_CONFIG=config/base.yml:config/development.yml
+```
+
+```bash .env.production
+ENVIRONMENT=production
+DISCORD_TOKEN=prod_bot_token_here
+BOT_VERSION=1.2.3
+DISCORE_CONFIG=config/base.yml:config/production.yml
+PRODUCTION_LOG_CHANNEL=123456789012345678
+```
+
+### Launcher Script
+
+```python main.py
+import discore
+import os
+import sys
+
+# Determine environment
+environment = os.getenv('ENVIRONMENT', 'development')
+env_file = f'.env.{environment}'
+
+print(f"Starting bot in {environment.upper()} mode")
+print(f"Loading environment from: {env_file}")
+
+# Verify environment file exists
+if not os.path.exists(env_file):
+    print(f"Error: Environment file '{env_file}' not found")
+    sys.exit(1)
+
+# Initialize bot with environment-specific config
+bot = discore.Bot(env_file=env_file)
+
+# Log configuration summary
+config = discore.utils.config
+print(f"Bot prefix: {config.prefix}")
+print(f"Hot reload: {config.hot_reload}")
+print(f"Log level: {config.log.level}")
+
+bot.run()
+```
+
+### Running the Bot
+
+```bash
+# Development
+ENVIRONMENT=development python main.py
+
+# Staging
+ENVIRONMENT=staging python main.py
+
+# Production
+ENVIRONMENT=production python main.py
+```
+
+## Configuration Merging Behavior
+
+Understanding how configurations merge is important:
+
+### Deep Merging
+
+Nested dictionaries are merged deeply:
+
+```yaml
+# base.yml
+log:
+  level: "INFO"
+  stream: true
+  file: "bot.log"
+```
+
+```yaml
+# override.yml
+log:
+  level: "DEBUG"  # Override just this value
+```
+
+**Result:**
+```yaml
+log:
+  level: "DEBUG"   # Overridden
+  stream: true     # Kept from base
+  file: "bot.log"  # Kept from base
+```
+
+### List Replacement
+
+Lists are replaced entirely, not merged:
+
+```yaml
+# base.yml
+help:
+  aliases: ["h", "help", "?"]
+```
+
+```yaml
+# override.yml
+help:
+  aliases: ["h"]  # Completely replaces the list
+```
+
+**Result:**
+```yaml
+help:
+  aliases: ["h"]  # Only "h" remains
+```
+
+## Best Practices
+
+### 1. Keep Secrets Separate
+
+<Warning>
+  Never put tokens or secrets directly in config files that might be committed to version control.
+</Warning>
+
+```yaml
+# Good - uses environment variable
+token: "$DISCORD_TOKEN"
+
+# Bad - hardcoded secret
+token: "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.GhIjKl.MnOpQr"
+```
+
+### 2. Document Your Configuration
+
+Create a configuration guide:
+
+```markdown CONFIG.md
+# Configuration Guide
+
+## Files
+
+- `config/base.yml` - Base settings for all environments
+- `config/development.yml` - Development overrides
+- `config/production.yml` - Production overrides
+
+## Environment Variables
+
+- `ENVIRONMENT` - Set to `development`, `staging`, or `production`
+- `DISCORD_TOKEN` - Bot token from Discord Developer Portal
+- `BOT_VERSION` - Semantic version string
+
+## Running
+
+```bash
+# Development
+ENVIRONMENT=development python main.py
+
+# Production
+ENVIRONMENT=production python main.py
+```
+```
+
+### 3. Version Control Strategy
+
+```gitignore .gitignore
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# But keep examples
+!.env.example
+
+# Config files
+config/*.local.yml
+override.config.yml
+
+# But keep base configs
+!config/base.yml
+!config/development.yml
+!config/staging.yml
+!config/production.yml
+```
+
+### 4. Validation
+
+Validate configuration at startup:
+
+```python main.py
+import discore
+import os
+import sys
+
+def validate_config():
+    """Validate required configuration."""
+    config = discore.utils.config
+    
+    # Check required fields
+    if not config.token:
+        print("Error: DISCORD_TOKEN not set")
+        return False
+    
+    # Warn about development settings in production
+    environment = os.getenv('ENVIRONMENT')
+    if environment == 'production':
+        if config.hot_reload:
+            print("Warning: hot_reload is enabled in production")
+        if config.log.level == 'DEBUG':
+            print("Warning: DEBUG logging in production")
+    
+    return True
+
+environment = os.getenv('ENVIRONMENT', 'development')
+bot = discore.Bot(env_file=f'.env.{environment}')
+
+if not validate_config():
+    sys.exit(1)
+
+bot.run()
+```
+
+### 5. Use Descriptive Prefixes
+
+Help users identify which environment the bot is running in:
+
+```yaml
+# development.yml
+prefix: "dev!"
+
+# staging.yml
+prefix: "stage!"
+
+# production.yml
+prefix: "!"
+```
+
+## Accessing Configuration in Code
+
+Access the merged configuration from anywhere:
+
+```python
+import discore
+
+class MyCommands(discore.Cog):
+    @discore.command(name="info")
+    async def info(self, ctx):
+        config = discore.utils.config
+        
+        embed = discore.Embed(title="Bot Information")
+        embed.add_field(name="Version", value=config.version)
+        embed.add_field(name="Prefix", value=config.prefix)
+        embed.add_field(name="Hot Reload", value=config.hot_reload)
+        
+        await ctx.send(embed=embed)
+```
+
+## Next Steps
+
+- [Environment Variables](/guides/environment-variables) - Learn more about using .env files
+- [Basic Bot Tutorial](/guides/basic-bot) - Build a bot with proper configuration
+- [Custom Cogs](/guides/custom-cogs) - Organize your bot's features

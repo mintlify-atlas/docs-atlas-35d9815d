@@ -1,0 +1,369 @@
+---
+title: Commands
+description: Create powerful text and slash commands with automatic hybrid support
+---
+
+Discore makes it easy to create commands that work both as traditional text commands and modern slash commands. Commands can be defined with rich metadata for help generation and support case-insensitive invocation.
+
+## Defining Commands
+
+Use the `@discore.command` decorator (or `@commands.command` from discord.py) to define commands:
+
+```python
+import discore
+
+bot = discore.Bot()
+
+@bot.command(
+    name="ping",
+    brief="Check bot latency",
+    description="Responds with the bot's current latency in milliseconds"
+)
+async def ping(ctx):
+    latency = ctx.bot.latency * 1000
+    await ctx.send(f"Pong! {latency:.2f}ms")
+```
+
+## Command Decorator Parameters
+
+The `@discore.command()` decorator accepts all standard discord.py parameters:
+
+<ParamField path="name" type="str">
+  The name of the command. If not provided, uses the function name.
+</ParamField>
+
+<ParamField path="brief" type="str">
+  Short one-line description shown in command lists.
+</ParamField>
+
+<ParamField path="description" type="str">
+  Detailed description of what the command does.
+</ParamField>
+
+<ParamField path="help" type="str">
+  Extended help text with usage examples and parameter details.
+</ParamField>
+
+<ParamField path="aliases" type="list[str]" default="[]">
+  Alternative names for the command.
+</ParamField>
+
+<ParamField path="enabled" type="bool" default="True">
+  Whether the command is enabled.
+</ParamField>
+
+<ParamField path="hidden" type="bool" default="False">
+  Whether to hide the command from help menus.
+</ParamField>
+
+<ParamField path="usage" type="str">
+  Custom usage string shown in help. Auto-generated from signature if not provided.
+</ParamField>
+
+<ParamField path="cooldown" type="commands.Cooldown">
+  Cooldown configuration for rate limiting.
+</ParamField>
+
+<ParamField path="checks" type="list[Callable]">
+  List of check functions that must pass before command execution.
+</ParamField>
+
+## Hybrid Commands
+
+Discore supports hybrid commands that work as both text commands (with prefix) and slash commands:
+
+```python
+import discore
+from discord import app_commands
+
+@bot.hybrid_command(
+    name="say",
+    brief="Say something",
+    description="Sends a message containing the string passed as an argument"
+)
+@app_commands.describe(message="The message to send")
+async def say(ctx, *, message: str):
+    await ctx.send(message)
+```
+
+With this command, users can invoke it either way:
+- Text: `!say Hello world`
+- Slash: `/say message:Hello world`
+
+<Note>
+  Hybrid commands require `config.auto_sync: true` or manual syncing with `bot.tree.sync()` to register slash commands.
+</Note>
+
+## Command Examples from README
+
+Here are the canonical examples from the Discore documentation:
+
+### Say Command
+
+```python
+@discore.command(
+    name="say",
+    brief="Say something",
+    description="Sends a message containing the string passed as an argument, and deletes the original message.",
+    help="- `message` : The string to send"
+)
+async def say(ctx, *, message: str):
+    await ctx.message.delete()
+    await ctx.send(message)
+```
+
+**Usage**: `!say Hello everyone!`
+
+### Ping Command
+
+```python
+@discore.command(
+    name="ping",
+    brief="check if the bot is online",
+    description="Responds with a simple message, useful to see if the bot is online"
+)
+async def ping(ctx):
+    await ctx.message.reply("Pong!")
+```
+
+**Usage**: `!ping`
+
+## Case Insensitive Commands
+
+When `config.case_insensitive` is enabled, command names and prefixes are case-insensitive:
+
+```yaml config.yml
+case_insensitive: true
+prefix: "!"
+```
+
+With this configuration, all of these work:
+- `!ping`
+- `!PING`
+- `!Ping`
+- `!PiNg`
+
+The prefix is also case-insensitive:
+- `!ping`
+- `!ping` (different case)
+
+<Tip>
+  Case insensitivity improves user experience by reducing confusion about exact casing.
+</Tip>
+
+## Command Arguments
+
+Commands can accept various argument types with automatic conversion:
+
+### Basic Types
+
+```python
+@bot.command()
+async def add(ctx, a: int, b: int):
+    """Add two numbers"""
+    await ctx.send(f"{a} + {b} = {a + b}")
+```
+
+### Discord Objects
+
+```python
+@bot.command()
+async def userinfo(ctx, member: discord.Member):
+    """Get info about a member"""
+    await ctx.send(f"{member.mention} joined on {member.joined_at}")
+```
+
+### Variable Length Arguments
+
+```python
+@bot.command()
+async def echo(ctx, *, text: str):
+    """Repeat everything after the command"""
+    await ctx.send(text)
+```
+
+### Optional Arguments
+
+```python
+from typing import Optional
+
+@bot.command()
+async def greet(ctx, member: Optional[discord.Member] = None):
+    """Greet a member, or yourself if none specified"""
+    target = member or ctx.author
+    await ctx.send(f"Hello {target.mention}!")
+```
+
+## Command Groups
+
+Organize related commands into groups:
+
+```python
+@bot.group()
+async def config(ctx):
+    """Configuration commands"""
+    if ctx.invoked_subcommand is None:
+        await ctx.send("Use a subcommand: get, set, list")
+
+@config.command()
+async def get(ctx, key: str):
+    """Get a config value"""
+    await ctx.send(f"Value of {key}: ...")
+
+@config.command()
+async def set(ctx, key: str, value: str):
+    """Set a config value"""
+    await ctx.send(f"Set {key} to {value}")
+```
+
+Usage:
+- `!config` - Shows help
+- `!config get prefix` - Runs the get subcommand
+- `!config set prefix $` - Runs the set subcommand
+
+## Command Checks
+
+Restrict command usage with checks:
+
+### Permission Checks
+
+```python
+from discord.ext import commands
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def purge(ctx, amount: int):
+    """Delete messages (admin only)"""
+    await ctx.channel.purge(limit=amount)
+```
+
+### Role Checks
+
+```python
+@bot.command()
+@commands.has_role("Moderator")
+async def warn(ctx, member: discord.Member, *, reason: str):
+    """Warn a member (moderators only)"""
+    await ctx.send(f"{member.mention} has been warned: {reason}")
+```
+
+### Owner Check
+
+```python
+@bot.command()
+@commands.is_owner()
+async def shutdown(ctx):
+    """Shut down the bot (owner only)"""
+    await ctx.send("Shutting down...")
+    await ctx.bot.close()
+```
+
+### Guild Only / DM Only
+
+```python
+@bot.command()
+@commands.guild_only()
+async def serverinfo(ctx):
+    """Get server information (guild only)"""
+    await ctx.send(f"Server: {ctx.guild.name}")
+
+@bot.command()
+@commands.dm_only()
+async def privacy(ctx):
+    """View privacy policy (DMs only)"""
+    await ctx.send("Privacy policy: ...")
+```
+
+### Custom Checks
+
+```python
+def is_in_channel(channel_id: int):
+    async def predicate(ctx):
+        return ctx.channel.id == channel_id
+    return commands.check(predicate)
+
+@bot.command()
+@is_in_channel(123456789)
+async def special(ctx):
+    """Only works in a specific channel"""
+    await ctx.send("Special command!")
+```
+
+## Cooldowns
+
+Add cooldowns to prevent spam:
+
+```python
+from discord.ext import commands
+
+@bot.command()
+@commands.cooldown(1, 60.0, commands.BucketType.user)
+async def daily(ctx):
+    """Claim daily reward (once per minute per user)"""
+    await ctx.send("You claimed your daily reward!")
+```
+
+Cooldown bucket types:
+- `BucketType.user` - Per user
+- `BucketType.guild` - Per server
+- `BucketType.channel` - Per channel
+- `BucketType.member` - Per member (user + guild)
+- `BucketType.category` - Per channel category
+- `BucketType.role` - Per role
+
+<Note>
+  When a command is on cooldown, Discore automatically sends a user-friendly message showing when they can use it again.
+</Note>
+
+## Command Context
+
+Every command receives a `Context` object with useful information:
+
+```python
+@bot.command()
+async def info(ctx):
+    print(f"Author: {ctx.author}")           # User who ran command
+    print(f"Guild: {ctx.guild}")             # Server (None in DMs)
+    print(f"Channel: {ctx.channel}")         # Channel
+    print(f"Message: {ctx.message}")         # Original message
+    print(f"Bot: {ctx.bot}")                 # Bot instance
+    print(f"Prefix: {ctx.prefix}")           # Prefix used
+    print(f"Command: {ctx.command}")         # Command object
+    print(f"Invoked with: {ctx.invoked_with}") # String used to invoke
+```
+
+## Commands in Cogs
+
+Commands are typically organized into cogs:
+
+```python
+# cogs/fun.py
+import discore
+
+class Fun(discore.Cog, name="Fun", description="Fun commands"):
+    
+    @discore.command(name="roll", brief="Roll a die")
+    async def roll(self, ctx, sides: int = 6):
+        import random
+        result = random.randint(1, sides)
+        await ctx.send(f"You rolled a {result}!")
+    
+    @discore.command(name="flip", brief="Flip a coin")
+    async def flip(self, ctx):
+        import random
+        result = random.choice(["Heads", "Tails"])
+        await ctx.send(f"The coin landed on: {result}")
+```
+
+See the [Cogs documentation](/core/cogs) for more details.
+
+## Error Handling
+
+Commands automatically benefit from Discore's error handling system. See the [Error Handling documentation](/core/error-handling) for details.
+
+## Related
+
+- [Cogs](/core/cogs) - Organize commands into modules
+- [Error Handling](/core/error-handling) - Handle command errors gracefully
+- [Configuration](/core/configuration) - Configure command prefix and behavior
+- [Localization](/core/localization) - Translate command responses

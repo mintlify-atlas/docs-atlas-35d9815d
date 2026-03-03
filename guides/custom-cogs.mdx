@@ -1,0 +1,361 @@
+---
+title: Creating Custom Cogs
+description: Learn how to organize your bot's commands into well-structured cogs with best practices
+---
+
+Cogs are a powerful way to organize your Discord bot's commands into logical groups. This guide covers everything you need to know about creating and managing custom cogs in Discore.
+
+## What Are Cogs?
+
+Cogs are classes that group related commands together. They help you:
+
+- Organize commands by functionality (moderation, fun, utility, etc.)
+- Share state and helper methods across commands
+- Load and unload features dynamically
+- Separate concerns in larger bots
+
+## Cog Structure
+
+### Basic Cog Template
+
+Here's the basic structure of a Discore cog:
+
+```python
+import discore
+
+class MyCog(discore.Cog, name="category_name", description="Category description"):
+    # The bot instance is automatically available
+    # via self.bot property
+
+    @discore.command(
+        name="command_name",
+        brief="Short description",
+        description="Longer description"
+    )
+    async def command_name(self, ctx, arg1: str):
+        # Command implementation
+        await ctx.send(f"You said: {arg1}")
+```
+
+### Naming Conventions
+
+<Warning>
+  Discore uses strict naming conventions for automatic cog discovery:
+</Warning>
+
+**File Name → Class Name Mapping:**
+
+- `my_cog.py` → `MyCog`
+- `basic_commands.py` → `BasicCommands`
+- `cog1.py` → `Cog1`
+- `moderation_tools.py` → `ModerationTools`
+
+The class name must be the PascalCase version of the snake_case filename.
+
+## Pre-Attributed Bot Instance
+
+Discore cogs come with a special `bot` property that provides access to the bot instance:
+
+```python
+import discore
+
+class Utility(discore.Cog, name="utility", description="Utility commands"):
+    @discore.command(name="uptime", brief="Show bot uptime")
+    async def uptime(self, ctx):
+        # Access the bot instance via self.bot
+        if self.bot.start_time:
+            uptime = discore.utils.utcnow() - self.bot.start_time
+            await ctx.send(f"Bot has been running for {uptime}")
+        else:
+            await ctx.send("Bot just started!")
+
+    @discore.command(name="stats", brief="Show bot statistics")
+    async def stats(self, ctx):
+        # Use self.bot to access bot properties
+        embed = discore.Embed(title="Bot Statistics")
+        embed.add_field(name="Servers", value=len(self.bot.guilds))
+        embed.add_field(name="Users", value=len(self.bot.users))
+        embed.add_field(name="Commands", value=len(self.bot.commands))
+        await ctx.send(embed=embed)
+```
+
+<Tip>
+  The `self.bot` property is automatically populated by Discore's `Cog` class using the `Bot.get()` singleton method.
+</Tip>
+
+## Complete Cog Example
+
+Let's expand on the example from the README to create a more comprehensive cog:
+
+```python cogs/messaging.py
+import discore
+from discord.ext import commands
+
+class Messaging(discore.Cog, name="messaging", description="Commands for sending and managing messages"):
+    """A cog containing message-related commands."""
+
+    @discore.command(
+        name="say",
+        brief="Say something",
+        description="Sends a message containing the string passed as an argument, and deletes the original message.",
+        help="- `message` : The string to send",
+        aliases=["repeat"]
+    )
+    async def say(self, ctx, *, message: str):
+        """Make the bot say something and delete the original message."""
+        await ctx.message.delete()
+        await ctx.send(message)
+
+    @discore.command(
+        name="announce",
+        brief="Make an announcement",
+        description="Creates a formatted announcement embed",
+        help="- `title` : The announcement title\n- `content` : The announcement content"
+    )
+    @commands.has_permissions(manage_messages=True)
+    async def announce(self, ctx, title: str, *, content: str):
+        """Create a formatted announcement (requires manage messages permission)."""
+        embed = discore.Embed(
+            title=f"📢 {title}",
+            description=content,
+            color=discore.utils.config.color or 0x5865F2
+        )
+        embed.set_footer(
+            text=f"Announced by {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url
+        )
+        await ctx.send(embed=embed)
+
+    @discore.command(
+        name="embed",
+        brief="Send a custom embed",
+        description="Creates a custom embed with title and description"
+    )
+    async def custom_embed(self, ctx, title: str, *, description: str):
+        """Send a custom embed message."""
+        embed = discore.Embed(title=title, description=description)
+        discore.utils.set_embed_footer(self.bot, embed)
+        await ctx.send(embed=embed)
+
+    @discore.command(
+        name="quote",
+        brief="Quote a message",
+        description="Quotes a message by its ID"
+    )
+    async def quote(self, ctx, message_id: int):
+        """Quote a message from the current channel."""
+        try:
+            message = await ctx.channel.fetch_message(message_id)
+            embed = discore.Embed(
+                description=message.content,
+                timestamp=message.created_at
+            )
+            embed.set_author(
+                name=message.author.display_name,
+                icon_url=message.author.display_avatar.url
+            )
+            await ctx.send(embed=embed)
+        except discore.NotFound:
+            await ctx.send("Message not found in this channel.")
+```
+
+## Organizing Commands into Categories
+
+Group related commands into separate cogs for better organization:
+
+<Tabs>
+  <Tab title="Moderation">
+    ```python cogs/moderation.py
+    import discore
+    from discord.ext import commands
+
+    class Moderation(discore.Cog, name="moderation", description="Server moderation commands"):
+        @discore.command(name="kick", brief="Kick a member")
+        @commands.has_permissions(kick_members=True)
+        async def kick(self, ctx, member: discore.Member, *, reason: str = "No reason provided"):
+            await member.kick(reason=reason)
+            await ctx.send(f"Kicked {member.mention} for: {reason}")
+
+        @discore.command(name="ban", brief="Ban a member")
+        @commands.has_permissions(ban_members=True)
+        async def ban(self, ctx, member: discore.Member, *, reason: str = "No reason provided"):
+            await member.ban(reason=reason)
+            await ctx.send(f"Banned {member.mention} for: {reason}")
+
+        @discore.command(name="clear", brief="Clear messages")
+        @commands.has_permissions(manage_messages=True)
+        async def clear(self, ctx, amount: int):
+            await ctx.channel.purge(limit=amount + 1)
+            await ctx.send(f"Cleared {amount} messages.", delete_after=5)
+    ```
+  </Tab>
+
+  <Tab title="Fun">
+    ```python cogs/fun.py
+    import discore
+    import random
+
+    class Fun(discore.Cog, name="fun", description="Fun and entertainment commands"):
+        @discore.command(name="roll", brief="Roll a dice")
+        async def roll(self, ctx, sides: int = 6):
+            result = random.randint(1, sides)
+            await ctx.send(f"🎲 You rolled a {result}!")
+
+        @discore.command(name="coinflip", brief="Flip a coin")
+        async def coinflip(self, ctx):
+            result = random.choice(["Heads", "Tails"])
+            await ctx.send(f"🪙 The coin landed on: **{result}**")
+
+        @discore.command(name="8ball", brief="Ask the magic 8ball")
+        async def eightball(self, ctx, *, question: str):
+            responses = [
+                "It is certain.", "Without a doubt.", "You may rely on it.",
+                "Ask again later.", "Better not tell you now.",
+                "Don't count on it.", "My sources say no."
+            ]
+            await ctx.send(f"🎱 {random.choice(responses)}")
+    ```
+  </Tab>
+
+  <Tab title="Utility">
+    ```python cogs/utility.py
+    import discore
+    from datetime import datetime
+
+    class Utility(discore.Cog, name="utility", description="Utility and information commands"):
+        @discore.command(name="ping", brief="Check bot latency")
+        async def ping(self, ctx):
+            latency = round(self.bot.latency * 1000)
+            await ctx.send(f"🏓 Pong! Latency: {latency}ms")
+
+        @discore.command(name="serverinfo", brief="Show server information")
+        async def serverinfo(self, ctx):
+            guild = ctx.guild
+            embed = discore.Embed(title=guild.name)
+            embed.add_field(name="Owner", value=guild.owner.mention)
+            embed.add_field(name="Members", value=guild.member_count)
+            embed.add_field(name="Created", value=guild.created_at.strftime("%Y-%m-%d"))
+            if guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+            await ctx.send(embed=embed)
+
+        @discore.command(name="userinfo", brief="Show user information")
+        async def userinfo(self, ctx, member: discore.Member = None):
+            member = member or ctx.author
+            embed = discore.Embed(title=f"User Info: {member.display_name}")
+            embed.add_field(name="ID", value=member.id)
+            embed.add_field(name="Joined", value=member.joined_at.strftime("%Y-%m-%d"))
+            embed.add_field(name="Roles", value=len(member.roles))
+            embed.set_thumbnail(url=member.display_avatar.url)
+            await ctx.send(embed=embed)
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+### 1. Use Descriptive Names
+
+```python
+# Good
+class ModerationTools(discore.Cog, name="moderation", description="Server moderation commands"):
+    pass
+
+# Avoid
+class Cog1(discore.Cog, name="cog1", description="the cog containing some commands"):
+    pass
+```
+
+### 2. Group Related Commands
+
+Keep related functionality together in the same cog:
+
+```python
+# Good - All moderation commands in one cog
+class Moderation(discore.Cog):
+    async def kick(self, ctx): ...
+    async def ban(self, ctx): ...
+    async def warn(self, ctx): ...
+```
+
+### 3. Add Proper Documentation
+
+```python
+class Music(discore.Cog, name="music", description="Music playback commands"):
+    @discore.command(
+        name="play",
+        brief="Play a song",
+        description="Plays a song from YouTube or a direct URL",
+        help="**Usage:**\n- `!play <song name>` - Search and play\n- `!play <url>` - Play from URL"
+    )
+    async def play(self, ctx, *, query: str):
+        """Play music in a voice channel."""
+        pass
+```
+
+### 4. Share Helper Methods
+
+Use private methods for shared functionality:
+
+```python
+class Economy(discore.Cog, name="economy", description="Economy commands"):
+    async def _get_balance(self, user_id: int) -> int:
+        """Helper method to get user balance."""
+        # Database query here
+        return 0
+
+    async def _update_balance(self, user_id: int, amount: int):
+        """Helper method to update user balance."""
+        # Database update here
+        pass
+
+    @discore.command(name="balance")
+    async def balance(self, ctx):
+        bal = await self._get_balance(ctx.author.id)
+        await ctx.send(f"Your balance: {bal} coins")
+```
+
+### 5. Use Cog-Level Error Handlers
+
+```python
+class Premium(discore.Cog, name="premium", description="Premium-only commands"):
+    async def cog_check(self, ctx):
+        """Check that runs before every command in this cog."""
+        # Check if user has premium
+        return await self._is_premium(ctx.author.id)
+
+    @discore.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        """Handle errors for this cog's commands."""
+        if isinstance(error, commands.CheckFailure):
+            await ctx.send("This command requires premium!")
+```
+
+## Configuration Tips
+
+### Assign Cog to Help Command
+
+In your `config.yml`, specify which cog contains the help command:
+
+```yaml
+help:
+  cog: "system"  # The cog class name (e.g., System class)
+  name: "help"
+  # ... other help settings
+```
+
+Then create the corresponding cog:
+
+```python cogs/system.py
+import discore
+
+class System(discore.Cog, name="system", description="System and bot management commands"):
+    # The help command will be automatically added to this cog
+    pass
+```
+
+## Next Steps
+
+- [Customizing the Help Command](/guides/help-command) - Learn about help command configuration
+- [Environment Variables](/guides/environment-variables) - Manage configuration across cogs
+- [Multiple Environments](/guides/multiple-environments) - Different configs for dev/prod

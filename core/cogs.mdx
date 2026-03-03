@@ -1,0 +1,319 @@
+---
+title: Cogs
+description: Organize your bot commands into modular, reusable cogs with automatic loading
+---
+
+Cogs are a way to organize your bot's commands, listeners, and functionality into separate modules. Discore automatically loads all cogs from the `cogs/` directory and provides a pre-attributed `bot` instance.
+
+## What are Cogs?
+
+Cogs are classes that group related commands and event listeners together. They help you:
+
+- **Organize code** - Group related commands logically
+- **Modularize functionality** - Separate features into independent files
+- **Hot-reload during development** - Reload cogs without restarting the bot (when `config.hot_reload` is enabled)
+- **Share code** - Reuse cogs across multiple bots
+
+## The Cog Class
+
+Discore provides a custom `Cog` class that extends `discord.ext.commands.Cog` with a pre-attributed `bot` property.
+
+```python
+import discore
+
+class MyCog(discore.Cog):
+    @property
+    def bot(self) -> discore.Bot:
+        """Returns the bot instance"""
+        return discore.Bot.get()
+```
+
+### Pre-attributed Bot Instance
+
+Unlike discord.py's standard cogs, you don't need to manually pass the bot instance:
+
+<CodeGroup>
+```python Discore (Automatic)
+import discore
+
+class MyCog(discore.Cog, name="My Cog"):
+    @discore.command()
+    async def ping(self, ctx):
+        # Access bot directly via self.bot
+        latency = self.bot.latency * 1000
+        await ctx.send(f"Pong! {latency:.2f}ms")
+```
+
+```python discord.py (Manual)
+from discord.ext import commands
+
+class MyCog(commands.Cog, name="My Cog"):
+    def __init__(self, bot):
+        self.bot = bot  # Must manually store bot
+    
+    @commands.command()
+    async def ping(self, ctx):
+        latency = self.bot.latency * 1000
+        await ctx.send(f"Pong! {latency:.2f}ms")
+```
+</CodeGroup>
+
+## File Naming Convention
+
+Discore automatically converts snake_case filenames to PascalCase class names:
+
+| Filename | Expected Class Name |
+|----------|--------------------|
+| `my_cog.py` | `MyCog` |
+| `user_commands.py` | `UserCommands` |
+| `admin_tools.py` | `AdminTools` |
+| `fun.py` | `Fun` |
+
+<Warning>
+  The class name **must** match the PascalCase version of the filename, or the cog will fail to load.
+</Warning>
+
+## Auto-loading from cogs/ Directory
+
+Place your cog files in a `cogs/` directory at the root of your project:
+
+```
+project/
+├── main.py
+├── config.yml
+└── cogs/
+    ├── moderation.py
+    ├── fun_commands.py
+    └── utility.py
+```
+
+All `.py` files in this directory are automatically loaded when the bot starts:
+
+```python
+# main.py
+import discore
+
+bot = discore.Bot()
+bot.run()  # Automatically loads all cogs from cogs/
+```
+
+The bot logs which cogs were successfully loaded:
+
+```
+[2024-03-03 12:00:00] [INFO] discore.bot: Cogs successfully loaded: 'Moderation', 'FunCommands', 'Utility'
+```
+
+## Creating a Cog
+
+Here's a complete example of a cog:
+
+```python
+# cogs/greetings.py
+import discore
+
+class Greetings(discore.Cog, name="greetings", description="Commands for greeting users"):
+    
+    @discore.command(
+        name="hello",
+        brief="Say hello",
+        description="Greets the user warmly"
+    )
+    async def hello(self, ctx):
+        await ctx.send(f"Hello {ctx.author.mention}! 👋")
+    
+    @discore.command(
+        name="goodbye",
+        brief="Say goodbye",
+        description="Bids farewell to the user"
+    )
+    async def goodbye(self, ctx):
+        await ctx.send(f"Goodbye {ctx.author.mention}! See you later! 👋")
+    
+    @discore.Cog.listener()
+    async def on_member_join(self, member):
+        """Welcome new members"""
+        channel = member.guild.system_channel
+        if channel:
+            await channel.send(f"Welcome {member.mention} to {member.guild.name}!")
+```
+
+## Cog Parameters
+
+When defining a cog, you can pass parameters to customize its behavior:
+
+<ParamField path="name" type="str">
+  The display name of the cog. Used in the help command.
+</ParamField>
+
+<ParamField path="description" type="str">
+  Description of the cog's purpose. Shown in the help menu.
+</ParamField>
+
+<ParamField path="command_attrs" type="dict">
+  Default attributes for all commands in this cog (e.g., cooldown, hidden).
+</ParamField>
+
+```python
+class Admin(discore.Cog, 
+            name="Administration", 
+            description="Admin-only commands",
+            command_attrs={"hidden": True}):
+    # All commands in this cog will be hidden by default
+    pass
+```
+
+## Example: Complete Cog with Commands
+
+Here's the example from the README:
+
+```python
+# cogs/cog1.py
+import discore
+
+class Cog1(discore.Cog, name="cog1", description="the cog containing some commands"):
+    
+    @discore.command(
+        name="say",
+        brief="Say something",
+        description="Sends a message containing the string passed as an argument, and deletes the original message.",
+        help="- `message` : The string to send"
+    )
+    async def say(self, ctx, *, message: str):
+        await ctx.message.delete()
+        await ctx.send(message)
+
+    @discore.command(
+        name="ping",
+        brief="check if the bot is online",
+        description="Responds with a simple message, useful to see if the bot is online"
+    )
+    async def ping(self, ctx):
+        await ctx.message.reply("Pong!")
+```
+
+## Event Listeners in Cogs
+
+Cogs can also contain event listeners using the `@discore.Cog.listener()` decorator:
+
+```python
+class Events(discore.Cog):
+    
+    @discore.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot:
+            return
+        
+        # React to messages containing "hello"
+        if "hello" in message.content.lower():
+            await message.add_reaction("👋")
+    
+    @discore.Cog.listener()
+    async def on_member_remove(self, member):
+        print(f"{member} left {member.guild}")
+```
+
+## Cog Lifecycle Methods
+
+Cogs support setup and teardown methods:
+
+```python
+class Database(discore.Cog):
+    
+    def __init__(self):
+        self.db_connection = None
+    
+    async def cog_load(self):
+        """Called when the cog is loaded"""
+        self.db_connection = await connect_to_database()
+        print("Database connection established")
+    
+    async def cog_unload(self):
+        """Called when the cog is unloaded"""
+        if self.db_connection:
+            await self.db_connection.close()
+            print("Database connection closed")
+```
+
+## Error Handling in Cogs
+
+Cogs can have their own error handlers:
+
+```python
+class Music(discore.Cog):
+    
+    @discore.command()
+    async def play(self, ctx, url: str):
+        # Command implementation
+        pass
+    
+    @play.error
+    async def play_error(self, ctx, error):
+        """Handle errors for the play command"""
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Please provide a URL!")
+    
+    async def cog_command_error(self, ctx, error):
+        """Handle errors for all commands in this cog"""
+        await ctx.send(f"An error occurred in {self.qualified_name}: {error}")
+```
+
+## Help Command Integration
+
+You can assign the help command to a specific cog using the configuration:
+
+```yaml config.yml
+help:
+  cog: "utility"  # Assigns help to the Utility cog
+  name: "help"
+  brief: "Shows help"
+```
+
+This requires a cog named `Utility` to exist in your `cogs/` directory.
+
+<Note>
+  The help command must be assigned to a cog by class name (PascalCase), not filename.
+</Note>
+
+## Hot Reload
+
+When `config.hot_reload` is enabled, cogs are automatically reloaded when their files are modified during development.
+
+```yaml config.yml
+hot_reload: true
+```
+
+<Warning>
+  Hot reload is intended for development only. Disable it in production for better performance.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cog not loading">
+    **Problem**: Your cog isn't being loaded by the bot.
+    
+    **Solutions**:
+    - Verify the filename follows snake_case (e.g., `my_cog.py`)
+    - Verify the class name is PascalCase version of filename (e.g., `MyCog`)
+    - Check that the file is in the `cogs/` directory
+    - Look for errors in the bot logs during startup
+  </Accordion>
+  
+  <Accordion title="AttributeError: 'NoneType' object has no attribute...">
+    **Problem**: `self.bot` returns `None`.
+    
+    **Solution**: This happens if the cog is instantiated before `bot.run()` is called. Discore's cogs use `Bot.get()` which only works after the bot instance is created and run.
+  </Accordion>
+  
+  <Accordion title="ModuleNotFoundError for help cog">
+    **Problem**: `The cog 'X', required by the help command, wasn't found`
+    
+    **Solution**: Create a cog with the exact class name specified in `config.help.cog`, or remove/change the help cog configuration.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [Commands](/core/commands) - Learn how to create commands in cogs
+- [Bot](/core/bot) - Understand the Bot class and cog loading
+- [Configuration](/core/configuration) - Configure help command cog assignment

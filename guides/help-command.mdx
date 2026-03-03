@@ -1,0 +1,452 @@
+---
+title: Customizing the Help Command
+description: Learn how to customize Discore's built-in help command with embeds, localization, and configuration options
+---
+
+Discore provides a powerful, customizable help command that works as both a prefix command and a slash command. This guide covers all configuration options and customization techniques.
+
+## Help Command Types
+
+Discore offers two help command implementations:
+
+<Accordion title="EmbedHelpCommand (Default)">
+  The `EmbedHelpCommand` provides a beautiful embed-based help system with:
+  
+  - Automatic embed formatting with bot branding
+  - Support for both prefix and slash commands
+  - Hybrid command support (works with `/` and `!` prefix)
+  - Automatic command categorization by cog
+  - Localization support
+  - Custom footer with version information
+
+  This is the default help command used by Discore.
+</Accordion>
+
+<Accordion title="HelpHybridCommand (Base Class)">
+  The `HelpHybridCommand` is the base class that provides:
+  
+  - Hybrid command functionality (prefix + slash)
+  - App command filtering and display
+  - Custom help message implementations
+  - Method overrides for complete customization
+
+  Use this if you want to build a completely custom help command while keeping hybrid support.
+</Accordion>
+
+## Basic Configuration
+
+Configure the help command in your `config.yml` file:
+
+```yaml config.yml
+prefix: "!"
+token: "YOUR_TOKEN"
+
+help:
+  cog: "system"           # Cog to assign the help command to
+  name: "help"            # Command name
+  help: "Shows this message"
+  description: "Shows help about the bot, a command, or a category"
+  usage: "[command | category]"
+  brief: "Shows help about the bot"
+  aliases: ["h", "hp"]    # Alternative command names
+  cooldown: null          # Cooldown in seconds (null = no cooldown)
+  enabled: true           # Whether the command is enabled
+  hidden: false           # Hide from help menu
+```
+
+<Tip>
+  All help configuration options are optional. Discore uses sensible defaults if they're not specified.
+</Tip>
+
+## All Available Attributes
+
+The `help` section in `config.yml` accepts all parameters that can be passed to discord.py's `HelpCommand` constructor:
+
+### Command Identity
+
+```yaml
+help:
+  name: "help"              # Command name (default: "help")
+  aliases: ["h", "?"]       # Alternative names
+  cog: "system"             # Cog name to assign command to
+```
+
+### Command Documentation
+
+```yaml
+help:
+  brief: "Shows help"       # Short one-line description
+  help: "Shows this message" # Detailed help text
+  description: "Shows help about the bot, a command, or a category"
+  usage: "[command]"        # Usage syntax example
+```
+
+### Command Behavior
+
+```yaml
+help:
+  enabled: true             # Enable/disable the command
+  hidden: false             # Hide from help listings
+  cooldown: null            # Cooldown in seconds (null = none)
+```
+
+### Advanced Options
+
+```yaml
+help:
+  verify_checks: true       # Verify user permissions before showing commands
+  show_hidden: false        # Show hidden commands
+  dm_help: false            # Send help via DM instead of channel
+  dm_help_threshold: 1000   # Max commands before forcing DM help
+```
+
+## Example Configurations
+
+<Tabs>
+  <Tab title="Minimal">
+    ```yaml config.yml
+    prefix: "!"
+    token: "YOUR_TOKEN"
+
+    help:
+      name: "help"
+      aliases: ["h"]
+    ```
+
+    This uses all default values with just a custom alias.
+  </Tab>
+
+  <Tab title="Complete (from README)">
+    ```yaml config.yml
+    prefix: "!"
+    token: "YOUR_TOKEN"
+
+    help:
+      cog: "system"
+      name: "help"
+      help: "Shows this message"
+      description: "Shows help about the bot, a command, or a category"
+      usage: "[command | category]"
+      brief: "Shows help about the bot"
+      aliases: ["h", "hp"]
+      cooldown: null
+      enabled: true
+      hidden: false
+    ```
+  </Tab>
+
+  <Tab title="Custom Cooldown">
+    ```yaml config.yml
+    help:
+      name: "help"
+      brief: "Shows help"
+      cooldown: 5             # 5 second cooldown between uses
+      verify_checks: true     # Only show commands user can run
+    ```
+  </Tab>
+
+  <Tab title="Hidden Advanced Help">
+    ```yaml config.yml
+    help:
+      name: "advanced_help"
+      brief: "Advanced help menu"
+      hidden: true            # Don't show in main help
+      show_hidden: true       # But this help shows hidden commands
+      dm_help: true           # Always send via DM
+    ```
+  </Tab>
+</Tabs>
+
+## Localizing Help Messages
+
+Customize help command messages by creating locale files in the `locales/` directory:
+
+```yaml locales/en-US.yml
+help:
+  no_commands: "*No commands*"
+  bot:
+    title: "Help Menu"
+    description: "Use `%{help_command} [command]` for more info on a command.\nYou can also use `%{help_command} [category]` for more info on a category."
+    no_category: "No category"
+  cog:
+    title: "%{cog} commands"
+    commands: "Commands"
+  group:
+    title: "%{group} group"
+  command:
+    title: "%{command} command"
+    not_found: "No command called `%{command}` found."
+  subcommand:
+    not_found: "Command `%{command}` has no subcommand named `%{subcommand}`"
+    no_subcommand: "Command `%{command}` has no subcommands."
+```
+
+### Available Placeholders
+
+- `%{help_command}` - The help command invocation (e.g., `!help`)
+- `%{cog}` - The cog/category name
+- `%{command}` - The command name
+- `%{group}` - The command group name
+- `%{subcommand}` - The subcommand name
+- `%{version}` - The bot version (from config)
+
+### Multi-Language Support
+
+Create multiple locale files for different languages:
+
+<Tabs>
+  <Tab title="English">
+    ```yaml locales/en-US.yml
+    help:
+      bot:
+        title: "Help Menu"
+        description: "Use `%{help_command} [command]` for more information."
+      command:
+        not_found: "No command called `%{command}` found."
+    ```
+  </Tab>
+
+  <Tab title="French">
+    ```yaml locales/fr.yml
+    help:
+      bot:
+        title: "Menu d'aide"
+        description: "Utilisez `%{help_command} [commande]` pour plus d'informations."
+      command:
+        not_found: "Aucune commande nommée `%{command}` trouvée."
+    ```
+  </Tab>
+
+  <Tab title="Spanish">
+    ```yaml locales/es.yml
+    help:
+      bot:
+        title: "Menú de Ayuda"
+        description: "Use `%{help_command} [comando]` para más información."
+      command:
+        not_found: "No se encontró ningún comando llamado `%{command}`."
+    ```
+  </Tab>
+</Tabs>
+
+Set the default locale in `config.yml`:
+
+```yaml
+locale: "en-US"  # Default language
+```
+
+<Note>
+  Discore automatically detects the user's Discord language preference when using slash commands and displays help in their language if available.
+</Note>
+
+## Customizing Appearance
+
+### Custom Embed Colors
+
+Set the embed color in your config:
+
+```yaml config.yml
+color: 0x5865F2  # Discord Blurple
+# or
+color: 0xFF0000  # Red
+# or
+color: 0x00FF00  # Green
+```
+
+### Custom Footer
+
+The help command automatically includes a footer with:
+
+- Bot name and avatar
+- Version number (if configured)
+- Custom information
+
+Configure the version in `config.yml`:
+
+```yaml
+version: "2.1.0"
+```
+
+Customize the footer text in your locale file:
+
+```yaml locales/en-US.yml
+footer:
+  version: "v%{version}"
+```
+
+## Programmatic Customization
+
+### Custom Help Command Class
+
+For advanced customization, create your own help command class:
+
+```python main.py
+import discore
+from discore.help import EmbedHelpCommand
+
+class CustomHelpCommand(EmbedHelpCommand):
+    async def send_bot_help(self, mapping):
+        """Override the main help menu."""
+        ctx = self.context
+        embed = discore.Embed(
+            title="🤖 Custom Help Menu",
+            description="Here are all my commands!",
+            color=0x5865F2
+        )
+        
+        # Add custom fields
+        embed.add_field(
+            name="Need more help?",
+            value="Join our [support server](https://discord.gg/example)",
+            inline=False
+        )
+        
+        # Call parent implementation for command listing
+        await super().send_bot_help(mapping)
+
+# Use custom help command
+bot = discore.Bot(
+    help_command=CustomHelpCommand(
+        command_attrs=discore.utils.config.help
+    )
+)
+
+bot.run()
+```
+
+### Override Help Methods
+
+Override specific methods to customize behavior:
+
+```python
+class CustomHelp(EmbedHelpCommand):
+    async def send_command_help(self, command):
+        """Customize individual command help."""
+        embed = discore.Embed(
+            title=f"📖 Command: {command.name}",
+            description=command.description or "No description"
+        )
+        
+        # Add usage
+        if command.signature:
+            embed.add_field(
+                name="Usage",
+                value=f"`{self.get_command_signature(command)}`",
+                inline=False
+            )
+        
+        # Add aliases
+        if command.aliases:
+            embed.add_field(
+                name="Aliases",
+                value=", ".join(f"`{alias}`" for alias in command.aliases),
+                inline=False
+            )
+        
+        await self.get_destination().send(embed=embed)
+```
+
+## Assigning Help to a Cog
+
+To organize the help command into a specific cog:
+
+1. Set the cog name in `config.yml`:
+
+```yaml
+help:
+  cog: "system"
+```
+
+2. Create the cog:
+
+```python cogs/system.py
+import discore
+
+class System(discore.Cog, name="system", description="System and bot management"):
+    # Help command will be automatically assigned here
+    
+    @discore.command(name="ping", brief="Check bot status")
+    async def ping(self, ctx):
+        await ctx.send(f"Pong! {round(self.bot.latency * 1000)}ms")
+```
+
+<Warning>
+  The cog name in `config.yml` must match the class name (case-sensitive). For `class System`, use `cog: "system"` or `cog: "System"`.
+</Warning>
+
+## Help Command Examples
+
+### Usage Examples
+
+Users can invoke the help command in these ways:
+
+```
+!help              # Show all commands
+!h                 # Using alias
+!help ping         # Help for specific command
+!help moderation   # Help for a cog/category
+/help              # Slash command version
+/help command:ping # Slash command with parameter
+```
+
+### Error Messages
+
+Customize error messages in locale files:
+
+```yaml locales/en-US.yml
+command_error:
+  bad_argument: "One or more arguments are incorrect.\nTry \n```\n%{command_usage}\n```"
+  missing_argument: "One or more arguments are missing.\nTry \n```\n%{command_usage}\n```"
+  on_cooldown: "This command is on cooldown. Try again %{cooldown_time}."
+  user_missing_permission: "You don't have permission to use this command."
+```
+
+## Best Practices
+
+### 1. Provide Good Descriptions
+
+```python
+@discore.command(
+    name="ban",
+    brief="Ban a member",  # Short for help list
+    description="Permanently ban a member from the server",  # Longer explanation
+    help="**Usage:**\n- `!ban @user [reason]`\n\n**Example:**\n- `!ban @Spammer Breaking rules`"  # Detailed with examples
+)
+async def ban(self, ctx, member: discore.Member, *, reason: str = "No reason"):
+    pass
+```
+
+### 2. Use Meaningful Aliases
+
+```yaml
+help:
+  name: "help"
+  aliases: ["h", "?", "commands"]  # Common alternatives
+```
+
+### 3. Group Commands Logically
+
+Organize commands into well-named cogs:
+
+```python
+class Moderation(discore.Cog, name="moderation", description="Server moderation tools"):
+    # All moderation commands here
+
+class Fun(discore.Cog, name="fun", description="Entertainment and games"):
+    # All fun commands here
+```
+
+### 4. Keep Help Messages Concise
+
+```yaml
+help:
+  bot:
+    title: "Help"
+    description: "Use `!help [command]` for details."  # Short and clear
+```
+
+## Next Steps
+
+- [Environment Variables](/guides/environment-variables) - Learn about secure configuration
+- [Custom Cogs](/guides/custom-cogs) - Organize commands into categories
+- [Multiple Environments](/guides/multiple-environments) - Different configs for dev/prod

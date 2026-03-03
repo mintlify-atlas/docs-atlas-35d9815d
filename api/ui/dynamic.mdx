@@ -1,0 +1,498 @@
+---
+title: 'DynamicItem'
+description: 'Dynamic item handling for persistent views'
+---
+
+## Overview
+
+The `DynamicItem` class allows you to handle UI components dynamically in persistent views. This is particularly useful when you need to create views that persist across bot restarts but don't know all the possible custom IDs in advance. Discore re-exports discord.py's DynamicItem class.
+
+## Class Definition
+
+```python
+from discore.ui import DynamicItem
+from discord.ui import View
+
+class DynamicItem(discord.ui.DynamicItem):
+    """A dynamically created item for persistent views."""
+```
+
+## Type Parameters
+
+- **BaseT** - The base item type (Button, Select, etc.)
+
+## Overview of Dynamic Items
+
+Normal persistent views require you to know all custom IDs in advance and register them on bot startup. Dynamic items solve the problem of handling components when:
+
+- Custom IDs are generated dynamically (e.g., containing user IDs or message IDs)
+- You have many different instances of similar components
+- Components are created during runtime rather than at startup
+
+## Class Template Pattern
+
+```python
+from discore.ui import DynamicItem
+from discord import Interaction, ButtonStyle
+from discord.ui import Button
+import re
+
+class MyDynamicButton(DynamicItem[Button], template=r'button:(?P<id>[0-9]+)'):
+    def __init__(self, item_id: int) -> None:
+        super().__init__(
+            Button(
+                label=f"Button {item_id}",
+                style=ButtonStyle.primary,
+                custom_id=f"button:{item_id}"
+            )
+        )
+        self.item_id = item_id
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Button,
+        match: re.Match[str]
+    ):
+        # Extract ID from custom_id using regex match
+        item_id = int(match['id'])
+        return cls(item_id)
+    
+    async def callback(self, interaction: Interaction) -> None:
+        await interaction.response.send_message(
+            f"Clicked button {self.item_id}!",
+            ephemeral=True
+        )
+```
+
+## Constructor
+
+```python
+DynamicItem(item: BaseT)
+```
+
+<ParamField path="item" type="BaseT" required>
+  The underlying UI item (Button, Select, etc.)
+</ParamField>
+
+## Class Parameters
+
+### template
+
+```python
+class MyDynamicItem(DynamicItem[ItemType], template=r'pattern:(?P<name>\w+)'):
+    ...
+```
+
+<ParamField path="template" type="str" required>
+  A regex pattern that matches the custom IDs this dynamic item handles. Use named groups to capture values.
+</ParamField>
+
+## Required Methods
+
+### from_custom_id
+
+```python
+@classmethod
+async def from_custom_id(
+    cls,
+    interaction: Interaction,
+    item: BaseT,
+    match: re.Match[str]
+) -> Self
+```
+
+Called when Discord sends an interaction with a custom ID matching the template. Create and return an instance of the dynamic item.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction that triggered this callback
+</ParamField>
+
+<ParamField path="item" type="BaseT" required>
+  The base item from Discord (Button, Select, etc.)
+</ParamField>
+
+<ParamField path="match" type="re.Match[str]" required>
+  The regex match object containing captured groups from the template
+</ParamField>
+
+**Returns:** An instance of the dynamic item class
+
+### callback
+
+```python
+async def callback(interaction: Interaction) -> None
+```
+
+Called when the item is interacted with.
+
+<ParamField path="interaction" type="Interaction" required>
+  The interaction object
+</ParamField>
+
+## Properties
+
+### item
+
+```python
+item: BaseT
+```
+
+The underlying UI item (Button, Select, etc.).
+
+## Usage Examples
+
+### Dynamic Button with User ID
+
+```python
+from discore.ui import DynamicItem, View
+from discord import Interaction, ButtonStyle, User
+from discord.ui import Button
+import re
+
+class UserButton(DynamicItem[Button], template=r'user:(?P<user_id>[0-9]+)'):
+    """A button that stores which user it's for."""
+    
+    def __init__(self, user: User) -> None:
+        super().__init__(
+            Button(
+                label=f"Profile: {user.name}",
+                style=ButtonStyle.primary,
+                custom_id=f"user:{user.id}"
+            )
+        )
+        self.user_id = user.id
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Button,
+        match: re.Match[str]
+    ):
+        user_id = int(match['user_id'])
+        user = await interaction.client.fetch_user(user_id)
+        return cls(user)
+    
+    async def callback(self, interaction: Interaction) -> None:
+        user = await interaction.client.fetch_user(self.user_id)
+        await interaction.response.send_message(
+            f"Viewing profile for {user.name}",
+            ephemeral=True
+        )
+
+# Register the dynamic item type on bot startup
+bot.add_dynamic_items(UserButton)
+
+# Use in a view
+class ProfileView(View):
+    def __init__(self, user: User):
+        super().__init__(timeout=None)  # Persistent
+        self.add_item(UserButton(user))
+
+view = ProfileView(some_user)
+await ctx.send("User Profile:", view=view)
+```
+
+### Dynamic Select with Context
+
+```python
+from discore.ui import DynamicItem
+from discord.ui import Select
+from discord import SelectOption
+import re
+
+class RoleSelect(DynamicItem[Select], template=r'role_select:(?P<guild_id>[0-9]+)'):
+    """A select menu that remembers which guild it's for."""
+    
+    def __init__(self, guild_id: int, roles: list) -> None:
+        options = [
+            SelectOption(label=role.name, value=str(role.id))
+            for role in roles[:25]  # Max 25 options
+        ]
+        
+        super().__init__(
+            Select(
+                placeholder="Choose a role...",
+                options=options,
+                custom_id=f"role_select:{guild_id}"
+            )
+        )
+        self.guild_id = guild_id
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Select,
+        match: re.Match[str]
+    ):
+        guild_id = int(match['guild_id'])
+        guild = interaction.client.get_guild(guild_id)
+        roles = guild.roles
+        return cls(guild_id, roles)
+    
+    async def callback(self, interaction: Interaction) -> None:
+        role_id = int(self.item.values[0])
+        role = interaction.guild.get_role(role_id)
+        
+        await interaction.response.send_message(
+            f"You selected: {role.name}",
+            ephemeral=True
+        )
+
+bot.add_dynamic_items(RoleSelect)
+```
+
+### Multiple Captured Groups
+
+```python
+class ActionButton(
+    DynamicItem[Button],
+    template=r'action:(?P<action>\w+):(?P<target_id>[0-9]+):(?P<user_id>[0-9]+)'
+):
+    """A button with action, target, and user context."""
+    
+    def __init__(self, action: str, target_id: int, user_id: int) -> None:
+        super().__init__(
+            Button(
+                label=f"{action.capitalize()}",
+                custom_id=f"action:{action}:{target_id}:{user_id}"
+            )
+        )
+        self.action = action
+        self.target_id = target_id
+        self.user_id = user_id
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Button,
+        match: re.Match[str]
+    ):
+        return cls(
+            action=match['action'],
+            target_id=int(match['target_id']),
+            user_id=int(match['user_id'])
+        )
+    
+    async def callback(self, interaction: Interaction) -> None:
+        # Only allow the original user to click
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(
+                "This button is not for you!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.send_message(
+            f"Performing {self.action} on {self.target_id}",
+            ephemeral=True
+        )
+
+bot.add_dynamic_items(ActionButton)
+
+# Usage
+view = View(timeout=None)
+view.add_item(ActionButton("delete", message_id=123456, user_id=ctx.author.id))
+view.add_item(ActionButton("edit", message_id=123456, user_id=ctx.author.id))
+```
+
+### Dynamic Pagination
+
+```python
+class PageButton(
+    DynamicItem[Button],
+    template=r'page:(?P<direction>next|prev):(?P<current>[0-9]+):(?P<total>[0-9]+)'
+):
+    """Pagination button that tracks current page."""
+    
+    def __init__(self, direction: str, current_page: int, total_pages: int) -> None:
+        emoji = "▶️" if direction == "next" else "◀️"
+        disabled = (
+            (direction == "next" and current_page >= total_pages) or
+            (direction == "prev" and current_page <= 1)
+        )
+        
+        super().__init__(
+            Button(
+                emoji=emoji,
+                custom_id=f"page:{direction}:{current_page}:{total_pages}",
+                disabled=disabled
+            )
+        )
+        self.direction = direction
+        self.current_page = current_page
+        self.total_pages = total_pages
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Button,
+        match: re.Match[str]
+    ):
+        return cls(
+            direction=match['direction'],
+            current_page=int(match['current']),
+            total_pages=int(match['total'])
+        )
+    
+    async def callback(self, interaction: Interaction) -> None:
+        # Calculate new page
+        if self.direction == "next":
+            new_page = min(self.current_page + 1, self.total_pages)
+        else:
+            new_page = max(self.current_page - 1, 1)
+        
+        # Create new view with updated page
+        view = PaginationView(new_page, self.total_pages)
+        
+        await interaction.response.edit_message(
+            content=f"Page {new_page}/{self.total_pages}",
+            view=view
+        )
+
+class PaginationView(View):
+    def __init__(self, current_page: int, total_pages: int):
+        super().__init__(timeout=None)
+        self.add_item(PageButton("prev", current_page, total_pages))
+        self.add_item(PageButton("next", current_page, total_pages))
+
+bot.add_dynamic_items(PageButton)
+```
+
+### Dynamic Items with State
+
+```python
+class ToggleButton(
+    DynamicItem[Button],
+    template=r'toggle:(?P<feature>\w+):(?P<state>on|off)'
+):
+    """A button that toggles between on/off states."""
+    
+    def __init__(self, feature: str, state: str) -> None:
+        style = ButtonStyle.success if state == "on" else ButtonStyle.secondary
+        label = f"{feature.capitalize()}: {state.upper()}"
+        
+        super().__init__(
+            Button(
+                label=label,
+                style=style,
+                custom_id=f"toggle:{feature}:{state}"
+            )
+        )
+        self.feature = feature
+        self.state = state
+    
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: Interaction,
+        item: Button,
+        match: re.Match[str]
+    ):
+        return cls(
+            feature=match['feature'],
+            state=match['state']
+        )
+    
+    async def callback(self, interaction: Interaction) -> None:
+        # Toggle state
+        new_state = "off" if self.state == "on" else "on"
+        
+        # Create new view with toggled state
+        view = View(timeout=None)
+        view.add_item(ToggleButton(self.feature, new_state))
+        
+        await interaction.response.edit_message(
+            content=f"{self.feature} is now {new_state}",
+            view=view
+        )
+
+bot.add_dynamic_items(ToggleButton)
+```
+
+### Registering Dynamic Items
+
+```python
+from discord.ext import commands
+from discore.ui import DynamicItem
+
+bot = commands.Bot(command_prefix="!")
+
+# Register multiple dynamic item types
+bot.add_dynamic_items(
+    UserButton,
+    RoleSelect,
+    ActionButton,
+    PageButton,
+    ToggleButton
+)
+
+# Or register individually
+bot.add_dynamic_items(UserButton)
+```
+
+## Template Patterns
+
+The template regex pattern should:
+
+1. Match only the custom IDs you want this dynamic item to handle
+2. Use named groups `(?P<name>...)` to capture values
+3. Be specific enough to avoid conflicts with other items
+
+### Good Template Examples
+
+```python
+# User-specific items
+template=r'user:(?P<user_id>[0-9]+)'
+
+# Action with context
+template=r'action:(?P<type>\w+):(?P<id>[0-9]+)'
+
+# Pagination
+template=r'page:(?P<page>[0-9]+):(?P<total>[0-9]+)'
+
+# Feature toggles
+template=r'toggle:(?P<feature>\w+):(?P<state>on|off)'
+
+# Complex context
+template=r'msg:(?P<msg_id>[0-9]+):(?P<action>\w+):(?P<user>[0-9]+)'
+```
+
+## Best Practices
+
+1. **Use descriptive patterns**: Make templates easy to understand
+2. **Capture necessary context**: Include all IDs and data needed for the callback
+3. **Validate inputs**: Check that extracted values are valid
+4. **Handle errors**: Wrap from_custom_id in try/except for invalid data
+5. **Register on startup**: Call add_dynamic_items in your bot's setup
+6. **Use persistent views**: Dynamic items work best with timeout=None
+7. **Document patterns**: Comment what each named group represents
+
+## Limitations
+
+- Custom IDs must still be ≤100 characters
+- Template must be a valid regex pattern
+- Can only capture data that fits in the custom_id string
+- from_custom_id must be able to reconstruct the item from just the match
+
+## Common Use Cases
+
+- User-specific buttons (profile views, DMs, etc.)
+- Pagination controls
+- Toggle switches with state
+- Action buttons with target IDs
+- Role/channel selection menus
+- Multi-step workflows
+- Configurable features per guild
+
+## Related
+
+- [View](/api/ui/view) - Container for dynamic items
+- [Item](/api/ui/item) - Base class for UI components
+- [Button](/api/ui/button) - Common base for dynamic buttons
+- [Select](/api/ui/select) - Common base for dynamic selects

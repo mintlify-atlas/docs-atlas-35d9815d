@@ -1,0 +1,157 @@
+---
+title: Internationalization Utilities
+description: Utilities for managing multi-language support and locale detection from Discord interactions
+---
+
+## i18n_init
+
+Initialize the internationalization (i18n) system for multi-language support.
+
+```python
+def i18n_init(**kwargs) -> None
+```
+
+<ParamField path="filename_format" type="str" default="{locale}.{format}">
+  Format string for locale file names. Available placeholders: `{locale}` and `{format}`.
+</ParamField>
+
+<ParamField path="skip_locale_root_data" type="bool" default="True">
+  Whether to skip loading the root data from locale files.
+</ParamField>
+
+<ParamField path="file_format" type="str" default="yml">
+  File format for locale files (e.g., "yml", "json").
+</ParamField>
+
+<ParamField path="locale" type="str">
+  Default locale to use. Defaults to `config.locale`.
+</ParamField>
+
+<ParamField path="fallback" type="str">
+  Fallback locale when translations are missing. Defaults to `config.locale`.
+</ParamField>
+
+<ParamField path="enable_memoization" type="bool">
+  Enable caching of translations for performance. Defaults to `not config.hot_reload`.
+</ParamField>
+
+<ParamField path="locale_dir" type="str" default="locales">
+  Directory path containing locale files. The directory is added to the load path if it exists.
+</ParamField>
+
+### Locale File Load Path
+
+The i18n system searches for locale files in the following directories:
+
+1. **Built-in locales**: `discore/locales/` directory in the package
+2. **Custom locales**: Directory specified by `locale_dir` parameter (defaults to `./locales`)
+
+Locale files should follow the naming pattern specified by `filename_format` (default: `en-US.yml`, `fr.yml`, etc.).
+
+### Configuration Example
+
+```python
+from discore.utils import i18n_init
+
+# Basic initialization
+i18n_init()
+
+# Custom configuration
+i18n_init(
+    filename_format="{locale}.{format}",
+    file_format="json",
+    locale="en-US",
+    fallback="en-US",
+    locale_dir="translations",
+    enable_memoization=True
+)
+```
+
+### Locale File Structure
+
+Locale files use YAML format by default:
+
+```yaml
+# en-US.yml
+welcome: "Welcome, {user}!"
+error:
+  not_found: "Command not found"
+  permission: "You don't have permission"
+footer:
+  version: "v{version}"
+  timeout: "This message will be deleted in {delay}"
+  units:
+    seconds: "s"
+    minutes: "m"
+    hours: "h"
+    days: "d"
+```
+
+### Memoization
+
+When `enable_memoization=True`, translations are cached for better performance. Disable this during development with hot reload enabled to see translation changes immediately.
+
+## set_locale
+
+Set the current locale based on Discord context, interaction, or manual value.
+
+```python
+def set_locale(value: Union[commands.Context, discord.Interaction, discord.Locale, str, any]) -> None
+```
+
+<ParamField path="value" type="commands.Context | discord.Interaction | discord.Locale | str | any" required>
+  The object to extract locale from. Supports:
+  - `commands.Context`: Extracts locale from `context.interaction.locale` if interaction exists
+  - `discord.Interaction`: Extracts locale from `interaction.locale`
+  - `discord.Locale`: Uses the locale's value
+  - `str`: Uses the string directly as locale
+  - Other types: Falls back to the configured fallback locale
+</ParamField>
+
+### Locale Detection
+
+The function automatically detects the appropriate locale based on the input type:
+
+1. **Context with Interaction**: Uses the interaction's locale (`context.interaction.locale.value`)
+2. **Interaction**: Uses the interaction's locale (`interaction.locale.value`)
+3. **Discord.Locale**: Converts to string value (`locale.value`)
+4. **String**: Uses the string directly
+5. **Other**: Falls back to `i18n.config.get('fallback')`
+
+### Usage Examples
+
+```python
+from discore.utils import set_locale
+import i18n
+
+# In a command handler
+@bot.command()
+async def hello(ctx):
+    set_locale(ctx)  # Auto-detect from context
+    await ctx.send(i18n.t('welcome', user=ctx.author.name))
+
+# In an app command
+@bot.tree.command()
+async def greet(interaction: discord.Interaction):
+    set_locale(interaction)  # Auto-detect from interaction
+    await interaction.response.send_message(i18n.t('welcome', user=interaction.user.name))
+
+# Manual locale setting
+set_locale('fr')  # Set to French
+set_locale(discord.Locale.japanese)  # Set to Japanese
+```
+
+### Integration with Commands
+
+For hybrid commands (supporting both prefix and slash), the locale is automatically detected from the interaction if available:
+
+```python
+@commands.hybrid_command()
+async def status(ctx: commands.Context):
+    set_locale(ctx)  # Works for both prefix and slash commands
+    await ctx.send(i18n.t('status.online'))
+```
+
+### Fallback Behavior
+
+If the locale cannot be determined from the input (e.g., passing `None` or an unsupported type), the function falls back to the configured fallback locale set during `i18n_init()`.
